@@ -39,12 +39,23 @@ class JavaSeisDataset(object):
     """
     def __init__(self, path):
         if not os.path.isdir(path):
+            self.is_valid = True
             raise IOError("Must be a folder: %s" % path)
 
-        self._validate_js_dir(path)
+        try:
+            self._validate_js_dir(path)
+            self._is_valid = True
+        except IOError, ioe:
+            print("%s is not a valid dataset" % path)
+            self._is_valid = False
+
         self._files = dircache.listdir(path)
         self.path = path
         self._read_properties()
+
+
+        # self.read_data()
+        self._is_open = True
 
 
     def _validate_js_dir(self, path):
@@ -103,8 +114,22 @@ class JavaSeisDataset(object):
         #self._trace_properties = TraceProperties(parset_trace_properties)
         #print(self._trace_properties)
 
+    def is_open(self):
+        return self._is_open
+
+    def close(self):
+        """
+        Close any open file descriptors or data resources..
+        """
+        if self.is_open():
+            return True
+        return False
+
     def get_nr_dimension(self):
         return self._file_properties
+
+    def is_valid(self):
+        return self._is_valid
 
 
 class JSFileReader(object):
