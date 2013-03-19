@@ -10,8 +10,10 @@ from distutils.core import setup
 setup(
     name     = 'PyJavaSeis',
     version  = '0.1dev',
+    author   = u"Asbjørn Alexander Fellinghaug",
+    author_email = "asbjorn <dot> fellinghaug _dot_ com"
     packages = ['pyjavaseis'],
-    license  = 'LGPL ??',
+    license  = 'GNU LGPL',
     long_description = """
 PyJavaSeis is a Python implementation of the seismic file format named JavaSeis.
     """
