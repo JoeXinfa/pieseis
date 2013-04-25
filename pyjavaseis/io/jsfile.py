@@ -135,6 +135,15 @@ class JavaSeisDataset(object):
     def is_valid(self):
         return self._is_valid
 
+    def get_file_properties(self):
+        return self._file_properties
+
+    def get_trace_properties(self):
+        return self._trace_properties
+
+    def get_custom_properties(self):
+        return self._custom_properties
+
 
 class JSFileReader(object):
     def __init__(self, bufferSize=2097152):
