@@ -81,6 +81,8 @@ class Properties(object):
                 value_type, value = parse_parset_element(child)
                 if parent:
                     self._attributes[parent][child.get('name')] = {'value': value, 'type': value_type}
+                else:
+                    self._attributes[child.get('name')] = {'value': value, 'type': value_type}
             else: # parset
                 name = child.get('name')
                 self._attributes[name] = {}
