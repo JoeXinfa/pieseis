@@ -30,7 +30,22 @@ class TestJSFileReader(unittest.TestCase):
     def test_js_file_properties(self):
         js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
         self.assertTrue(isinstance(js_dataset._file_properties, properties.FileProperties))
-        #print("JavaSeisDataset FileProperties: %s" % js_dataset._file_properties)
+        print("JavaSeisDataset FileProperties: %s" % js_dataset._file_properties)
+
+        # TODO: Check _ALL_ get methods on object
+
+class TestFileProperties(unittest.TestCase):
+    def setUp(self):
+        self.test_dataset = TEST_DATASET
+        self.js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
+        self.file_properties = self.js_dataset.get_file_properties()
+
+    def tearDown(self):
+        pass
+
+    def test_get_nr_dimensions(self):
+        self.assertTrue(isinstance(self.file_properties.get_nr_dimensions(), int))
+        self.assertTrue(self.file_properties.get_nr_dimensions() > 0)
 
 
 if __name__ == '__main__':
