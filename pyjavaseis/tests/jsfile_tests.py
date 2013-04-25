@@ -12,9 +12,11 @@ import pyjavaseis.io.jsfile as jsfile
 #import io.jsfile as jsfile
 from pyjavaseis.io import properties
 
+TEST_DATASET = "/home/asbjorn/datasets/2hots.js"
+
 class TestJSFileReader(unittest.TestCase):
     def setUp(self):
-        self.test_dataset = "/home/asbjorn/datasets/2hots.js"
+        self.test_dataset = TEST_DATASET
 
     def tearDown(self):
         pass
