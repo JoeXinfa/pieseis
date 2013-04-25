@@ -6,11 +6,11 @@ import unittest
 import sys
 sys.path.append('..')
 
-import io.jsfile
+import pyjavaseis.io.jsfile as jsfile
 #from io import jsfile
 #from io import jsfile
 #import io.jsfile as jsfile
-from io import properties
+from pyjavaseis.io import properties
 
 class TestJSFileReader(unittest.TestCase):
     def setUp(self):
@@ -19,7 +19,7 @@ class TestJSFileReader(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_open_js_dataset(self, path):
+    def test_open_js_dataset(self):
         js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
         self.assertTrue(js_dataset.is_valid())
         self.assertTrue(js_dataset.is_open())
@@ -28,6 +28,7 @@ class TestJSFileReader(unittest.TestCase):
     def test_js_file_properties(self):
         js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
         self.assertTrue(isinstance(js_dataset._file_properties, properties.FileProperties))
+        #print("JavaSeisDataset FileProperties: %s" % js_dataset._file_properties)
 
 
 if __name__ == '__main__':
