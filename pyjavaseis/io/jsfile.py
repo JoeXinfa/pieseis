@@ -2,7 +2,7 @@ import os
 import dircache
 from lxml import etree
 
-from properties import FileProperties, TraceProperties
+from properties import FileProperties, TraceProperties, CustomProperties
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -113,8 +113,10 @@ class JavaSeisDataset(object):
         #print(self._file_properties)
         #print(self._file_properties._attributes)
 
-        #self._trace_properties = TraceProperties(parset_trace_properties)
+        self._trace_properties = TraceProperties(parset_trace_properties)
         #print(self._trace_properties)
+
+        self._custom_properties = CustomProperties(parset_custom_properties)
 
     def is_open(self):
         return self._is_open
