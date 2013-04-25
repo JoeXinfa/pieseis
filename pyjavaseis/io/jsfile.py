@@ -30,6 +30,7 @@ def open_javaseis(path):
         raise IOError("Missing read access for JavaSeis dataset")
 
     js_dataset = JavaSeisDataset(path)
+    return js_dataset
 
 
 class JavaSeisDataset(object):
@@ -59,6 +60,7 @@ class JavaSeisDataset(object):
 
 
     def _validate_js_dir(self, path):
+        """Gets called during the construction of this object instance"""
         def js_missing(f):
             raise IOError("Missing: "+f)
         files = dircache.listdir(path)
@@ -108,8 +110,8 @@ class JavaSeisDataset(object):
         parset_custom_properties = get_parset('CustomProperties')
 
         self._file_properties = FileProperties(parset_file_properties)
-        print(self._file_properties)
-        print(self._file_properties._attributes)
+        #print(self._file_properties)
+        #print(self._file_properties._attributes)
 
         #self._trace_properties = TraceProperties(parset_trace_properties)
         #print(self._trace_properties)
