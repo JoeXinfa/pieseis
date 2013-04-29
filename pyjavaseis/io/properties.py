@@ -60,6 +60,7 @@ def parse_parset_element(element):
 
     return (element_type, retval)
 
+
 class Properties(object):
     def __init__(self, root, name):
         if not isinstance(root, etree._Element):
@@ -71,7 +72,7 @@ class Properties(object):
         self._parse_parset(self._root)
 
     def put(self, name, value, value_type=None):
-        if not self._attributes.has_key(name):
+        if not name in self._attributes:
             self._attributes[name] = {'value': value, 'type': value_type}
 
     def _parse_parset(self, parset, parent=None):
@@ -83,11 +84,10 @@ class Properties(object):
                     self._attributes[parent][child.get('name')] = {'value': value, 'type': value_type}
                 else:
                     self._attributes[child.get('name')] = {'value': value, 'type': value_type}
-            else: # parset
+            else:  # parset
                 name = child.get('name')
                 self._attributes[name] = {}
                 self._parse_parset(child, name)
-
 
     def _parse(self):
         children_elements = list(self._root)
@@ -95,7 +95,6 @@ class Properties(object):
             value_type, value = parse_parset_element(child)
 
             self.put(child.get('name'), value, value_type)
-
 
     def __str__(self):
         attribs = ""
@@ -198,8 +197,6 @@ class FileProperties(Properties):
 class TraceProperties(Properties):
     def __init__(self, root):
         super(TraceProperties, self).__init__(root, "TraceProperties")
-
-
 
 
 class CustomProperties(Properties):
