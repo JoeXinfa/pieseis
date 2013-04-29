@@ -11,8 +11,8 @@ import pyjavaseis.io.jsfile as jsfile
 #from io import jsfile
 #import io.jsfile as jsfile
 from pyjavaseis.io import properties
+from config_for_test import TEST_DATASET
 
-TEST_DATASET = "/home/asbjorn/datasets/2hots.js"
 
 class TestJSFileReader(unittest.TestCase):
     def setUp(self):
