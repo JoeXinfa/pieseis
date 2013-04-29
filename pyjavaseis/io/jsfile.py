@@ -22,6 +22,7 @@ JS_EARLYVERSION1 = "2006.01"
 JS_PREXMLVERSION = "2006.2"
 JS_VERSION = "2006.3"
 
+
 def open_javaseis(path):
     if not os.path.isdir(path):
         raise IOError("JavaSeis dataset does not exists")
@@ -48,16 +49,15 @@ class JavaSeisDataset(object):
             self._is_valid = True
         except IOError, ioe:
             print("%s is not a valid dataset" % path)
+            print("msg: %s" % ioe)
             self._is_valid = False
 
         self._files = dircache.listdir(path)
         self.path = path
         self._read_properties()
 
-
         # self.read_data()
         self._is_open = True
-
 
     def _validate_js_dir(self, path):
         """Gets called during the construction of this object instance"""
@@ -154,7 +154,6 @@ class JSFileReader(object):
 
     def open(self, path):
         js_dataset = open_javaseis(path)
-
 
 
 if __name__ == '__main__':
