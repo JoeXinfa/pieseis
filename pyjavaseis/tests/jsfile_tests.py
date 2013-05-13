@@ -3,15 +3,17 @@ With unittests
 """
 
 import unittest
+
 import sys
 sys.path.append('..')
 
 import pyjavaseis.io.jsfile as jsfile
-#from io import jsfile
-#from io import jsfile
-#import io.jsfile as jsfile
 from pyjavaseis.io import properties
-from config_for_test import TEST_DATASET
+
+try:
+    from config_for_test import TEST_DATASET
+except ImportError, ie:
+    from tests.config_for_test import TEST_DATASET
 
 
 class TestJSFileReader(unittest.TestCase):
