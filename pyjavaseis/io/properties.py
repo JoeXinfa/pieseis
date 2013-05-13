@@ -198,6 +198,9 @@ class TraceProperties(Properties):
     def __init__(self, root):
         super(TraceProperties, self).__init__(root, "TraceProperties")
 
+    def get_nr_of_entries(self):
+        pass
+
 
 class CustomProperties(Properties):
     def __init__(self, root):
