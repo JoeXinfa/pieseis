@@ -153,7 +153,11 @@ class JSFileReader(object):
         self._traceMap = None
 
     def open(self, path):
-        js_dataset = open_javaseis(path)
+        self._js_dataset = open_javaseis(path)
+
+    @property
+    def javaseis_dataset(self):
+        return self._js_dataset
 
 
 if __name__ == '__main__':
