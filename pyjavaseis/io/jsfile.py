@@ -129,19 +129,19 @@ class JavaSeisDataset(object):
             return True
         return False
 
-    def get_nr_dimension(self):
-        return self._file_properties
-
     def is_valid(self):
         return self._is_valid
 
-    def get_file_properties(self):
+    @property
+    def file_properties(self):
         return self._file_properties
 
-    def get_trace_properties(self):
+    @property
+    def trace_properties(self):
         return self._trace_properties
 
-    def get_custom_properties(self):
+    @property
+    def custom_properties(self):
         return self._custom_properties
 
 
