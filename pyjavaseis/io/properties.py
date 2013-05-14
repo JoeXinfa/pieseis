@@ -198,8 +198,15 @@ class TraceProperties(Properties):
     def __init__(self, root):
         super(TraceProperties, self).__init__(root, "TraceProperties")
 
-    def get_nr_of_entries(self):
-        pass
+        self._header_values = [self._attributes[x]['label']['value'] for x in self._attributes]
+
+    @property
+    def header_entries(self):
+        return self._header_values
+
+    def header_byte_offset(self, header_name):
+        if not header_name in self._header_values:
+            return None
 
 
 class CustomProperties(Properties):
