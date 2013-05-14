@@ -17,5 +17,3 @@ class JavaSeisDataset(object):
 
         if not os.access(filename, os.R_OK):
             raise IOError("Missing read access for JavaSeis dataset")
-
-    def _read_headers(self):
