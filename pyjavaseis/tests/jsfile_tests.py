@@ -9,11 +9,7 @@ sys.path.append('..')
 
 import pyjavaseis.io.jsfile as jsfile
 from pyjavaseis.io import properties
-
-try:
-    from config_for_test import TEST_DATASET
-except ImportError, ie:
-    from tests.config_for_test import TEST_DATASET
+from pyjavaseis.tests.config_for_test import TEST_DATASET
 
 
 class TestJSFileReader(unittest.TestCase):
