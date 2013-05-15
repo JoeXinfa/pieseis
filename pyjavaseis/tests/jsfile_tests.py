@@ -27,12 +27,14 @@ class TestJSFileReader(unittest.TestCase):
 
     def test_js_file_properties(self):
         js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
-        self.assertTrue(isinstance(js_dataset._file_properties, properties.FileProperties))
-        print("JavaSeisDataset FileProperties: %s" % js_dataset._file_properties)
+        self.assertTrue(isinstance(js_dataset.file_properties, properties.FileProperties))
+        #print("JavaSeisDataset FileProperties: %s" % js_dataset.file_properties)
 
     def test_trace_properties(self):
-        # TODO: Check _ALL_ get methods on object
-        pass
+        js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
+        self.assertTrue(isinstance(js_dataset.trace_properties, properties.TraceProperties))
+        #print("JavaSeisDataset TraceProperties: %s" % js_dataset.trace_properties)
+        #print("Header names: {0}".format(js_dataset.trace_properties.header_names))
 
 
 class TestFileProperties(unittest.TestCase):
