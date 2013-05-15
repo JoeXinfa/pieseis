@@ -118,29 +118,35 @@ class FileProperties(Properties):
     def __init__(self, root):
         super(FileProperties, self).__init__(root, "FileProperties")
 
-    def get_nr_dimensions(self):
+    @property
+    def nr_dimensions(self):
         value = self._attributes['DataDimensions']
         return value.get('value')
 
-    def get_data_type(self):
+    @property
+    def data_type(self):
         value = self._attributes['DataType']
         return value.get('value')
 
-    def get_header_length_in_bytes(self):
+    @property
+    def header_length_in_bytes(self):
         value = self._attributes['HeaderLengthBytes']
         return value.get('value')
 
-    def get_javaseis_version(self):
+    @property
+    def javaseis_version(self):
         return self._attributes['JavaSeisVersion']['value']
 
-    def get_logical_deltas(self):
+    @property
+    def logical_deltas(self):
         value = self._attributes['LogicalDeltas']
         return value.get('value')
 
     def get_logical_delta(self, dimension):
         return self.get_logical_deltas()[dimension]
 
-    def get_logical_origins(self):
+    @property
+    def logical_origins(self):
         value = self._attributes['LogicalOrigins']
         return value.get('value')
 
@@ -151,46 +157,54 @@ class FileProperties(Properties):
         value = self._attributes['Mapped']
         return value.get('value')
 
-    def get_physical_deltas(self):
+    @property
+    def physical_deltas(self):
         value = self._attributes['PhysicalDeltas']
         return value.get('value')
 
     def get_physical_delta(self, dimension):
         return self.get_physical_deltas()[dimension]
 
-    def get_physical_origins(self):
+    @property
+    def physical_origins(self):
         value = self._attributes['PhysicalOrigins']
         return value.get('value')
 
     def get_physical_origin(self, dimension):
         return self.get_physical_origins()[dimension]
 
-    def get_trace_format(self):
+    @property
+    def trace_format(self):
         value = self._attributes['TraceFormat']
         return value.get('value')
 
-    def get_axis_labels(self):
+    @property
+    def axis_labels(self):
         value = self._attributes['AxisLabels']
         return value.get('value')
 
-    def get_axis_lengths(self):
+    @property
+    def axis_lengths(self):
         value = self._attributes['AxisLengths']
         return value.get('value')
 
     def get_axis_length(self, dimension):
         return self.get_axis_lengths()[dimension]
 
-    def get_axis_units(self):
+    @property
+    def axis_units(self):
         value = self._attributes['AxisUnits']
         return value.get('value')
 
     def get_axis_unit(self, dimension):
         return self.get_axis_units()[dimension]
 
-    def get_byteorder(self):
+    @property
+    def byteorder(self):
         return self._attributes['ByteOrder']['value']
 
-    def get_comments(self):
+    @property
+    def comments(self):
         return self._attributes['Comments']['value']
 
 
@@ -198,15 +212,29 @@ class TraceProperties(Properties):
     def __init__(self, root):
         super(TraceProperties, self).__init__(root, "TraceProperties")
 
-        self._header_values = [self._attributes[x]['label']['value'] for x in self._attributes]
+        self._header_names = [self._attributes[x]['label']['value'] for x in self._attributes]
 
     @property
-    def header_entries(self):
-        return self._header_values
+    def header_names(self):
+        return self._header_names
 
     def header_byte_offset(self, header_name):
-        if not header_name in self._header_values:
+        pass
+
+    def header_values(self, header_name):
+        if not header_name in self.header_names:
+            print("No header with name {0} found.".format(header_name))
             return None
+
+        for header_entry in self._attributes:
+            if self._attributes[header_entry]['label']['value'] == header_name:
+                attribute_entry = self._attributes[header_entry]
+                header_object = {
+                    'byte_offset': attribute_entry['byteOffset'],
+                    'description': attribute_entry['description'],
+                    'format': attribute_entry['format'],
+                    'label': attribute_entry['label'] }
+                return header_object
 
 
 class CustomProperties(Properties):
