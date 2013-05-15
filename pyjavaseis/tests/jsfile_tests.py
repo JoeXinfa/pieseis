@@ -47,8 +47,26 @@ class TestFileProperties(unittest.TestCase):
         pass
 
     def test_get_nr_dimensions(self):
-        self.assertTrue(isinstance(self.file_properties.get_nr_dimensions(), int))
-        self.assertTrue(self.file_properties.get_nr_dimensions() > 0)
+        self.assertTrue(isinstance(self.file_properties.nr_dimensions, int))
+        self.assertTrue(self.file_properties.nr_dimensions > 0)
+
+class TestTraceProperties(unittest.TestCase):
+    def setUp(self):
+        self.test_dataset = TEST_DATASET
+        self.js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
+        self.trace_properties = self.js_dataset.trace_properties
+
+    def tearDown(self):
+        pass
+
+    def test_get_all_header_names(self):
+        self.assertTrue(isinstance(self.trace_properties.header_names, list))
+        self.assertTrue(len(self.trace_properties.header_names) > 0)
+
+    def test_get_source_header(self):
+        print("SOURCE header: {0}".format(self.trace_properties.header_values('SOURCE')))
+        self.assertTrue(isinstance(self.trace_properties.header_values('SOURCE'), dict))
+
 
 
 if __name__ == '__main__':
