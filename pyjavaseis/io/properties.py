@@ -213,6 +213,7 @@ class TraceProperties(Properties):
         super(TraceProperties, self).__init__(root, "TraceProperties")
 
         self._header_names = [self._attributes[x]['label']['value'] for x in self._attributes]
+        self._trace_headers_cache = {}
 
     @property
     def header_names(self):
