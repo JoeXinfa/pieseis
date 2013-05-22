@@ -227,15 +227,13 @@ class TraceProperties(Properties):
             print("No header with name {0} found.".format(header_name))
             return None
 
-        for header_entry in self._attributes:
-            if self._attributes[header_entry]['label']['value'] == header_name:
-                attribute_entry = self._attributes[header_entry]
-                header_object = {
-                    'byte_offset': attribute_entry['byteOffset'],
-                    'description': attribute_entry['description'],
-                    'format': attribute_entry['format'],
-                    'label': attribute_entry['label'] }
-                return header_object
+        if header_name not in self._trace_headers_cache:
+            for header_entry in self._attributes:
+                if self._attributes[header_entry]['label']['value'] == header_name:
+                    attribute_entry = self._attributes[header_entry]
+                    self._trace_headers_cache[header_name] = TraceHeader(attribute_entry)
+                    break
+        return self._trace_headers_cache[header_name]
 
 
 class CustomProperties(Properties):
