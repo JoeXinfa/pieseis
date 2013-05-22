@@ -219,10 +219,8 @@ class TraceProperties(Properties):
     def header_names(self):
         return self._header_names
 
-    def header_byte_offset(self, header_name):
-        pass
-
     def header_values(self, header_name):
+        """Return the TraceHeader instance with the name 'header_name'"""
         if not header_name in self.header_names:
             print("No header with name {0} found.".format(header_name))
             return None
