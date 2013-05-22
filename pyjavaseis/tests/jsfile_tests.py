@@ -64,9 +64,11 @@ class TestTraceProperties(unittest.TestCase):
         self.assertTrue(len(self.trace_properties.header_names) > 0)
 
     def test_get_source_header(self):
-        print("SOURCE header: {0}".format(self.trace_properties.header_values('SOURCE')))
-        self.assertTrue(isinstance(self.trace_properties.header_values('SOURCE'), properties.TraceHeader))
+        self.assertIsInstance(self.trace_properties.header_values('SOURCE'), properties.TraceHeader)
+        source_header = self.trace_properties.header_values('SOURCE')
 
+        self.assertIsInstance(source_header.byte_offset, int)
+        self.assertIsInstance(source_header.element_count, int)
 
 
 if __name__ == '__main__':
