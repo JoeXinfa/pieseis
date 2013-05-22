@@ -240,3 +240,21 @@ class TraceProperties(Properties):
 class CustomProperties(Properties):
     def __init__(self, root):
         super(CustomProperties, self).__init__(root, "CustomProperties")
+
+
+class TraceHeader(object):
+    """Correspond to a TraceHeader entry from the FileProperties.xml file"""
+    def __init__(self, val=None):
+        if not val:
+            raise Exception("Missing trace header value")
+
+        self.byte_offset = val['byteOffset']['value']
+        self.description = val['description']['value']
+        self.format = val['format']['value']
+        self.label = val['label']['value']
+        self.element_count = val['elementCount']['value']
+
+    def __eq__(self, other):
+        if self.label == other.label:
+            return True
+        return False
