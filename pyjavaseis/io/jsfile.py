@@ -3,6 +3,7 @@ import dircache
 from lxml import etree
 
 from properties import FileProperties, TraceProperties, CustomProperties
+from defs import GridDefinition
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -154,6 +155,10 @@ class JSFileReader(object):
 
     def open(self, path):
         self._js_dataset = open_javaseis(path)
+
+        self._num_samples = self._js_dataset.file_properties.axis_lengths[GridDefinition.SAMPLE_INDEX]
+        self._num_traces = self._js_dataset.file_properties.axis_lengths[GridDefinition.TRACE_INDEX]
+        self._num_volumes = a
 
     @property
     def javaseis_dataset(self):
