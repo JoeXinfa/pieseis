@@ -65,8 +65,9 @@ class TestTraceProperties(unittest.TestCase):
 
     def test_get_source_header(self):
         self.assertIsInstance(self.trace_properties.header_values('SOURCE'), properties.TraceHeader)
-        source_header = self.trace_properties.header_values('SOURCE')
 
+    def test_header_is_trace_header_object(self):
+        source_header = self.trace_properties.header_values('SOURCE')
         self.assertIsInstance(source_header.byte_offset, int)
         self.assertIsInstance(source_header.element_count, int)
 
