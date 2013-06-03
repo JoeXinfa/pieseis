@@ -8,6 +8,12 @@ The purpose of this extension is the give users the ability to read and write to
 Having the ability to extract the raw data and it's corresponding meta data is essential - therefore I started this python extension - pyjavaseis
 
 
+## Howto read a float and not double
+By using the <code>import struct</code> module one can use floats without allocation a double in the native code. For instance: 
+<code>
+    import struct
+    struct.unpack("f", struct.pack("f", 0.05023324454))
+</code>
 
 Author(s)
 =========
