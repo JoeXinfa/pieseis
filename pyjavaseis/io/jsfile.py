@@ -160,7 +160,7 @@ class JSFileReader(object):
 
         self._num_samples = self._js_dataset.file_properties.axis_lengths[GridDefinition.SAMPLE_INDEX]
         self._num_traces = self._js_dataset.file_properties.axis_lengths[GridDefinition.TRACE_INDEX]
-        self._num_volumes = a
+        self._num_volumes = self._js_dataset.file_properties.axis_lengths[GridDefinition.VOLUME_INDEX]
 
     @property
     def javaseis_dataset(self):
