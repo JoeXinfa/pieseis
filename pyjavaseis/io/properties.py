@@ -238,6 +238,16 @@ class CustomProperties(Properties):
     def __init__(self, root):
         super(CustomProperties, self).__init__(root, "CustomProperties")
 
+        """
+        +Parse 'FieldInstruments'
+        +Parse 'GeomMatchesFlag'
+        +Parse 'Geometry'
+        """
+
+    def is_synthetic(self):
+        #value = self.
+        pass
+
 
 class TraceHeader(object):
     """Correspond to a TraceHeader entry from the FileProperties.xml file"""
