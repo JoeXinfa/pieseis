@@ -72,5 +72,11 @@ class TestTraceProperties(unittest.TestCase):
         self.assertIsInstance(source_header.element_count, int)
 
 
+class TestCustomProperties(unittest.TestCase):
+    def setUp(self):
+        self.test_dataset = TEST_DATASET
+        self.js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
+        self.custom_properties = self.js_dataset.custom_properties
+
 if __name__ == '__main__':
     unittest.main()
