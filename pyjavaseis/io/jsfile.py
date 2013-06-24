@@ -181,6 +181,14 @@ class JSFileReader(object):
         return total_frames
 
     @property
+    def total_nr_of_traces(self):
+        """Calculates the total number of traces in the dataset.
+        """
+        total_traces = self.nr_traces * self.total_nr_of_frames
+        return total_traces
+
+
+    @property
     def nr_samples(self):
         """Return the number of samples in the dataset"""
         return self._js_dataset.file_properties.axis_lengths[0]
@@ -202,5 +210,8 @@ class JSFileReader(object):
 
 if __name__ == '__main__':
     testpath = "/home/asbjorn/datasets/2hots.js"
+    import os
+    if not os.path.exists(tetpath):
+        print("'{0}' dataset does not exists..".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
     print jsDataset
