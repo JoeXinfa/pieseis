@@ -1,3 +1,4 @@
+
 """
 With unittests
 """
@@ -15,24 +16,24 @@ from pyjavaseis.tests.config_for_test import TEST_DATASET
 class TestJSFileReader(unittest.TestCase):
     def setUp(self):
         self.test_dataset = TEST_DATASET
+        self.js_reader = jsfile.JSFileReader()
+        self.js_reader.open(TEST_DATASET)
+        self.js_dataset = self.js_reader.dataset
 
     def tearDown(self):
         pass
 
     def test_open_js_dataset(self):
-        js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
-        self.assertTrue(js_dataset.is_valid())
-        self.assertTrue(js_dataset.is_open())
-        self.assertTrue(js_dataset.close())
+        self.assertTrue(self.js_dataset.is_valid())
+        self.assertTrue(self.js_dataset.is_open())
+        self.assertTrue(self.js_dataset.close())
 
     def test_js_file_properties(self):
-        js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
-        self.assertTrue(isinstance(js_dataset.file_properties, properties.FileProperties))
+        self.assertTrue(isinstance(self.js_dataset.file_properties, properties.FileProperties))
         #print("JavaSeisDataset FileProperties: %s" % js_dataset.file_properties)
 
     def test_trace_properties(self):
-        js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
-        self.assertTrue(isinstance(js_dataset.trace_properties, properties.TraceProperties))
+        self.assertTrue(isinstance(self.js_dataset.trace_properties, properties.TraceProperties))
         #print("JavaSeisDataset TraceProperties: %s" % js_dataset.trace_properties)
         #print("Header names: {0}".format(js_dataset.trace_properties.header_names))
 
