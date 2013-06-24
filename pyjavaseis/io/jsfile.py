@@ -155,7 +155,7 @@ class JSFileReader(object):
         self._js_dataset = None
         self._num_samples = self._num_traces = self._num_volumes = None
 
-    def open(self, path):
+    def open(self, path, nthreads=2):
         self._js_dataset = open_javaseis(path)
 
         self._num_samples = self._js_dataset.file_properties.axis_lengths[GridDefinition.SAMPLE_INDEX]
