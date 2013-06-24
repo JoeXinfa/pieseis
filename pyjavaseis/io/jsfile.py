@@ -166,6 +166,9 @@ class JSFileReader(object):
         self._header_length_in_bytes = self._js_dataset.trace_properties.record_lengths
         self._frame_header_length = self._header_length_in_bytes * self._num_traces
 
+    @property
+    def dataset(self):
+        return self._js_dataset
 
 
     @property
