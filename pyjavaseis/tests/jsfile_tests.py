@@ -37,6 +37,10 @@ class TestJSFileReader(unittest.TestCase):
         #print("JavaSeisDataset TraceProperties: %s" % js_dataset.trace_properties)
         #print("Header names: {0}".format(js_dataset.trace_properties.header_names))
 
+    def test_total_nr_of_frames(self):
+        self.assertIsInstance(self.js_reader.total_nr_of_frames, long, msg="The total number of frames must be a long. Got: {0}".format(type(self.js_reader.total_nr_of_frames)))
+        self.assertGreater(self.js_reader.total_nr_of_frames, 0, msg="Total number of frames must be 1 or larger")
+
 
 class TestFileProperties(unittest.TestCase):
     def setUp(self):
