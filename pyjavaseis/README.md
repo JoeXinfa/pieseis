@@ -15,6 +15,8 @@ By using the <code>import struct</code> module one can use floats without alloca
     struct.unpack("f", struct.pack("f", 0.05023324454))
 </code>
 
+The challenge would be to do this in a Pythonic way and using threading without being restricted by the GIL..
+
 Author(s)
 =========
 * Asbjørn Alexander Fellinghaug (asbjorn ,dot, fellinghaug _dot_ com)
