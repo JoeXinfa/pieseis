@@ -162,6 +162,12 @@ class JSFileReader(object):
         self._num_traces = self._js_dataset.file_properties.axis_lengths[GridDefinition.TRACE_INDEX]
         self._num_volumes = self._js_dataset.file_properties.axis_lengths[GridDefinition.VOLUME_INDEX]
 
+        self._nthreads = nthreads
+        self._header_length_in_bytes = self._js_dataset.trace_properties.record_lengths
+        self._frame_header_length = self._header_length_in_bytes * self._num_traces
+
+
+
     @property
     def javaseis_dataset(self):
         return self._js_dataset
