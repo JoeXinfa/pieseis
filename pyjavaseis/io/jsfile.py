@@ -181,6 +181,16 @@ class JSFileReader(object):
         return total_frames
 
     @property
+    def nr_samples(self):
+        """Return the number of samples in the dataset"""
+        return self._js_dataset.file_properties.axis_lengths[0]
+
+    @property
+    def nr_traces(self):
+        """Return the number of traces in the dataset"""
+        return self._js_dataset.file_properties.axis_lengths[1]
+
+    @property
     def dataset(self):
         return self._js_dataset
 
