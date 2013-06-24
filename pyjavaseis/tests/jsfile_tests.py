@@ -37,9 +37,20 @@ class TestJSFileReader(unittest.TestCase):
         #print("JavaSeisDataset TraceProperties: %s" % js_dataset.trace_properties)
         #print("Header names: {0}".format(js_dataset.trace_properties.header_names))
 
+    def test_nr_of_samples(self):
+        self.assertIsInstance(self.js_reader.nr_samples, long, msg="The nr of samples must be of type long.")
+        self.assertGreater(self.js_reader.nr_samples, 0, msg="The number of samples must be greater than 0.")
+        print("Dataset: {0}, # samples: {1}".format(self.test_dataset, self.js_reader.nr_samples))
+
+    def test_nr_of_traces(self):
+        self.assertIsInstance(self.js_reader.nr_traces, long, msg="The nr of traces must be of type long.")
+        self.assertGreater(self.js_reader.nr_traces, 0, msg="The number of traces must be greater than 0.")
+        print("Dataset: {0}, # traces: {1}".format(self.test_dataset, self.js_reader.nr_traces))
+
     def test_total_nr_of_frames(self):
         self.assertIsInstance(self.js_reader.total_nr_of_frames, long, msg="The total number of frames must be a long. Got: {0}".format(type(self.js_reader.total_nr_of_frames)))
         self.assertGreater(self.js_reader.total_nr_of_frames, 0, msg="Total number of frames must be 1 or larger")
+        print("Dataset: {0}, # of frames: {1}".format(self.test_dataset, self.js_reader.total_nr_of_frames))
 
 
 class TestFileProperties(unittest.TestCase):
