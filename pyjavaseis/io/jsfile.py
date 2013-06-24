@@ -167,6 +167,20 @@ class JSFileReader(object):
         self._frame_header_length = self._header_length_in_bytes * self._num_traces
 
     @property
+    def total_nr_of_frames(self):
+        """Calculates the total number of frames in the dataset.
+        Collect the number in the 3rd dimension (axis_lengths[3]), and also if
+        we are a 4D dataset we also multiply this with the length of the 4th
+        dimension.
+        """
+        nr_dim = self._js_dataset.file_properties.nr_dimensions
+        total_frames = 1
+        axis_lengths = self._js_dataset.file_properties.axis_lengths
+        for dimension in xrange(2, nr_dim-1):
+            total_frames *= axis_lengths[dimension]
+        return total_frames
+
+    @property
     def dataset(self):
         return self._js_dataset
 
