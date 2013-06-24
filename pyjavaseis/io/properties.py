@@ -233,11 +233,19 @@ class TraceProperties(Properties):
                     break
         return self._trace_headers_cache[header_name]
 
+    @property
+    def record_lengths(self):
+        """Return total number of bytes for all the headers"""
+        total_bytes = 0
+        for header_name in self.header_names:
+            pass
+
+        return total_bytes
+
 
 class CustomProperties(Properties):
     def __init__(self, root):
         super(CustomProperties, self).__init__(root, "CustomProperties")
-
         """
         +Parse 'FieldInstruments'
         +Parse 'GeomMatchesFlag'
