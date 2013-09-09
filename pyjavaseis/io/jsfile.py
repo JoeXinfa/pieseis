@@ -25,6 +25,11 @@ JS_VERSION = "2006.3"
 
 
 def open_javaseis(path):
+    """
+    Utility method to open a JavaSeis dataset. Will throw an
+    IOError exception in case of any errors, or a
+    JavaSeisDataset instance.
+    """
     if not os.path.isdir(path):
         raise IOError("JavaSeis dataset does not exists")
 
