@@ -39,6 +39,22 @@ def open_javaseis(path):
     js_dataset = JavaSeisDataset(path)
     return js_dataset
 
+def create_javaseis(path):
+    """
+    Utility method to write / construct a javaseis dataset.
+    Will either throw a IOError exception or a
+    JavaSeisDataset instance.
+    """
+    if os.path.exists(path):
+        raise IOError("JavaSeis dataset already exists. Can't overwrite with a new one.")
+
+    # Construct a new "JavaSeis" file here.
+    try:
+        os.makedirs(path)
+    except IOError as e:
+        raise e
+
+
 
 class JavaSeisDataset(object):
     """
