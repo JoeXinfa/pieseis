@@ -23,7 +23,7 @@ js_reader.open(PATH_TO_JS_DATASET)
 dataset = js_reader.dataset
 file_properties = dataset.file_properties
 
-print("Dataset {0}")
+print("Dataset {0}".format(PATH_TO_JS_DATASET))
 print("Samples: {0}, Traces: {1}, Frames: {2}".format(
     js_reader.nr_samples,
     js_reader.nr_traces,
