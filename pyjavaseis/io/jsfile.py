@@ -55,6 +55,9 @@ def create_javaseis(path):
     except IOError as e:
         raise e
 
+    # TODO: Construct all the meta files
+    raise NotImplementedError("Not yet fully implemented feature to create new JS datasets.")
+
 
 class JavaSeisDataset(object):
     """
