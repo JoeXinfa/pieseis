@@ -31,6 +31,7 @@ def open_javaseis(path):
     JavaSeisDataset instance.
     """
     if not os.path.isdir(path):
+        # TODO: call create_javaseis(path) here
         raise IOError("JavaSeis dataset does not exists")
 
     if not os.access(path, os.R_OK):
@@ -46,14 +47,13 @@ def create_javaseis(path):
     JavaSeisDataset instance.
     """
     if os.path.exists(path):
-        raise IOError("JavaSeis dataset already exists. Can't overwrite with a new one.")
+        raise IOError("Path for JavaSeis dataset already exists..")
 
     # Construct a new "JavaSeis" file here.
     try:
         os.makedirs(path)
     except IOError as e:
         raise e
-
 
 
 class JavaSeisDataset(object):
@@ -150,6 +150,8 @@ class JavaSeisDataset(object):
         if self.is_open():
             return True
         return False
+
+
 
     def is_valid(self):
         return self._is_valid
