@@ -17,4 +17,7 @@ setup(
     long_description = """
 PyJavaSeis is a Python implementation of the seismic file format named JavaSeis.
     """
+    install_requires=[
+        "lxml>=3.1.0"
+    ]
     )
