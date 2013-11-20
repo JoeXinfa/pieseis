@@ -1,6 +1,7 @@
 import os
 import dircache
 from lxml import etree
+import struct
 
 from properties import FileProperties, TraceProperties, CustomProperties
 from defs import GridDefinition
@@ -192,6 +193,32 @@ class JSFileReader(object):
         self._header_length_in_bytes = self._js_dataset.trace_properties.record_lengths
         self._frame_header_length = self._header_length_in_bytes * self._num_traces
 
+
+        self.is_regular = True
+
+        if self._js_dataset.file_properties.is_mapped():
+            # read TraceMap and check whether it contains a value that differs from m_numTraces
+            # if so, then it is not regular, otherwise regular
+            self.is_mapped = True
+            total_nr_of_live_traces = 0
+            max_ints_to_read = 4096
+            int_buffer = [0] * max_ints_to_read
+            nr_of_read_ints = 0
+
+            while nr_of_read_ints < self.total_nr_of_frames:
+                ints_to_read = self.total_nr_of_frames - nr_of_read_ints
+                if ints_to_read
+
+            with open(JS_TRACE_MAP, 'rb') as f:
+                # lese
+                pass
+
+        else:
+            # if not mapped, then it must be regular
+            self.is_mapped = False
+            total_nr_of_live_traces = self.total_nr_of_traces
+
+
     @property
     def total_nr_of_frames(self):
         """Calculates the total number of frames in the dataset.
@@ -232,6 +259,9 @@ class JSFileReader(object):
     @property
     def javaseis_dataset(self):
         return self._js_dataset
+
+    def read(self):
+        pass
 
 
 if __name__ == '__main__':
