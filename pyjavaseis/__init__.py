@@ -8,4 +8,3 @@ logger.info("Starting up pyjavaseis library..")
 
 
 __all__ = ['io','utils']
-
