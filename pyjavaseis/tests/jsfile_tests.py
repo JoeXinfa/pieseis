@@ -1,6 +1,6 @@
 
 """
-With unittests
+Unittessts for various parts of the python javaseis implementation.
 """
 
 import unittest
