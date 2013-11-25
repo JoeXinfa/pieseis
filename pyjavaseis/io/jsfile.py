@@ -205,11 +205,11 @@ class JSFileReader(object):
             int_buffer = [0] * max_ints_to_read
             nr_of_read_ints = 0
 
-            while nr_of_read_ints < self.total_nr_of_frames:
-                ints_to_read = self.total_nr_of_frames - nr_of_read_ints
-                if ints_to_read
+            #while nr_of_read_ints < self.total_nr_of_frames:
+                #ints_to_read = self.total_nr_of_frames - nr_of_read_ints
+                #if ints_to_read
 
-            with open(JS_TRACE_MAP, 'rb') as f:
+            with open(os.path.join(path, JS_TRACE_MAP), 'rb') as f:
                 # lese
                 pass
 
