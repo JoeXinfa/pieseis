@@ -196,6 +196,8 @@ class JSFileReader(object):
 
         self.is_regular = True
 
+        # TODO: Use scipy / numpy to read the binary data?
+
         if self._js_dataset.file_properties.is_mapped():
             # read TraceMap and check whether it contains a value that differs from m_numTraces
             # if so, then it is not regular, otherwise regular
