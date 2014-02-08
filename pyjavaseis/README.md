@@ -17,6 +17,8 @@ By using the <code>import struct</code> module one can use floats without alloca
 
 The challenge would be to do this in a Pythonic way and using threading without being restricted by the GIL..
 
+
+
 Author(s)
 =========
 * Asbjørn Alexander Fellinghaug (asbjorn ,dot, fellinghaug _dot_ com)
