@@ -53,3 +53,42 @@ class TestCustomProperties(unittest.TestCase):
         self.test_dataset = TEST_DATASET
         self.js_dataset = jsfile.JavaSeisDataset(self.test_dataset)
         self.custom_properties = self.js_dataset.custom_properties
+
+    def tearDown(self):
+        pass
+
+    def assert_exists_and_string(self, prop):
+        self.assertIsNotNone(prop)
+        self.assertIsInstance(prop, str)
+        self.assertTrue(len(prop)>0)
+
+    def test_is_synthetic(self):
+        self.assertFalse(self.custom_properties.synthetic)
+
+    def test_secondary_key(self):
+        self.assertIsInstance(self.custom_properties.secondary_key, str)
+
+    def test_geometry_matches_flag(self):
+        self.assertIsInstance(self.custom_properties.geometry_matches_flag, int)
+
+    def test_primary_key(self):
+        self.assert_exists_and_string(self.custom_properties.primary_key)
+        # TODO: Maybe also check that the value is a VALID header??
+
+    def test_primary_sort(self):
+        self.assert_exists_and_string(self.custom_properties.primary_sort)
+
+    def test_trace_no_matches_flag(self):
+        self.assertIsInstance(self.custom_properties.trace_no_matches_flag, int)
+
+    def test_stacked(self):
+        self.assertIsNotNone(self.custom_properties.stacked)
+        self.assertIsInstance(self.custom_properties, bool)
+
+    def test_cookie(self):
+        self.assertIsNotNone(self.custom_properties.cookie)
+        self.assertIsInstance(self.custom_properties.cookie, int)
+
+
+if __name__ == '__main__':
+    unittest.main()
