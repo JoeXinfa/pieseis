@@ -213,6 +213,7 @@ class JSFileReader(object):
 
             with open(os.path.join(path, JS_TRACE_MAP), 'rb') as f:
                 # lese
+                f.read()
                 pass
 
         else:

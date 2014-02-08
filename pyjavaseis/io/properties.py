@@ -75,6 +75,15 @@ class Properties(object):
         if not name in self._attributes:
             self._attributes[name] = {'value': value, 'type': value_type}
 
+    def get(self, attribute_name):
+        return self._attributes[attribute_name]
+
+    def get_attr_value(self, attribute_name):
+        return self.get(attribute_name).get('value')
+
+    def get_attr_type(self, attribute_name):
+        return self.get(attribute_name).get('type')
+
     def _parse_parset(self, parset, parent=None):
         childrens = list(parset)
         for child in childrens:
@@ -251,10 +260,158 @@ class CustomProperties(Properties):
         +Parse 'GeomMatchesFlag'
         +Parse 'Geometry'
         """
+        self._field_instruments = FieldInstruments(self.get('FieldInstruments'))
 
-    def is_synthetic(self):
-        #value = self.
-        pass
+    @property
+    def synthetic(self):
+        value = self._attributes['Synthetic']
+        return value.get('value')
+
+    @property
+    def secondary_key(self):
+        value = self._attributes['SecondaryKey']
+        return value.get('value')
+
+    @property
+    def geometry_matches_flag(self):
+        return self.get_attr_value('GeomMatchesFlag')
+
+    @property
+    def primary_key(self):
+        return self.get_attr_value('PrimaryKey')
+
+    @property
+    def primary_sort(self):
+        return self.get_attr_value('PrimarySort')
+
+    @property
+    def trace_no_matches_flag(self):
+        return self.get_attr_value('TraceNoMatchesFlag')
+
+    @property
+    def stacked(self):
+        return self.get_attr_value('Stacked')
+
+    @property
+    def cookie(self):
+        return self.get_attr_value('cookie')
+
+
+    # TODO: Create nested properties for 'field_instruments'
+    #   and 'geometry' that returns already created classes
+
+    """
+        <parset name="FieldInstruments">
+      <par name="systemFormatCode" type="int"> 2139081118 </par>
+      <par name="nAuxChannels" type="int"> 2139081118 </par>
+      <par name="systemSerialNum" type="int"> 2139081118 </par>
+      <par name="earlyGain" type="float"> 0.0 </par>
+      <par name="systemDialinConst" type="float"> 3.4E38 </par>
+      <par name="systemManCode" type="int"> 2139081118 </par>
+      <par name="notchFiltFreq" type="float"> 0.0 </par>
+      <par name="highcutFiltSlope" type="float"> 0.0 </par>
+      <par name="lowcutFiltFreq" type="float"> 0.0 </par>
+      <par name="preampGain" type="float"> 0.0 </par>
+      <par name="notchFiltSlope" type="float"> 0.0 </par>
+      <par name="gainMode" type="int"> 0 </par>
+      <par name="originalSamprat" type="float"> 0.0 </par>
+      <par name="highcutFiltFreq" type="float"> 0.0 </par>
+      <par name="originalNumsmp" type="int"> 2001 </par>
+      <par name="aaFiltFreq" type="float"> 0.0 </par>
+      <par name="sourceType" type="int"> 2139081118 </par>
+      <par name="dateRecorded" type="int"> 0 </par>
+      <par name="lowcutFiltSlope" type="float"> 0.0 </par>
+      <par name="aaFiltSlope" type="float"> 0.0 </par>
+    </parset>
+    """
+
+    class FieldInstruments(object):
+        def __init__(self, data):
+            self._data = data
+
+        def get(self, attribute_name):
+            return self._data[attribute_name]
+
+        def get_attr_value(self, attribute_name):
+            return self.get(attribute_name).get('value')
+
+        def get_attr_type(self, attribute_name):
+            return self.get(attribute_name).get('type')
+
+        @property
+        def get_system_format_code(self):
+            return self._data['systemFormatCode']
+
+    @property
+    def field_instruments(self):
+        return self._field_instruments
+
+    @property
+    def geometry(self):
+        self._geometry
+
+
+    """
+    <parset name="Geometry">
+      <par name="minCdpExternal" type="int"> 0 </par>
+      <par name="nOffsetBins" type="int"> 2139081118 </par>
+      <par name="nCrosslinesExternal" type="int"> 0 </par>
+      <par name="ntracesTotal" type="long"> 2139081118 </par>
+      <par name="nCdps" type="int"> 1002 </par>
+      <par name="maxSin" type="int"> 2139081118 </par>
+      <par name="incChan" type="int"> 2139081118 </par>
+      <par name="ySurfLoc1" type="double"> 3.3999999521443642E38 </par>
+      <par name="offsetMax" type="float"> 3.4E38 </par>
+      <par name="units" type="int"> 3 </par>
+      <par name="incCdpExternal" type="int"> 0 </par>
+      <par name="xXLine1End" type="float"> 0.0 </par>
+      <par name="yILine1End" type="float"> 0.0 </par>
+      <par name="marine" type="int"> 0 </par>
+      <par name="dCdpILine" type="float"> 25.0 </par>
+      <par name="nInlinesExternal" type="int"> 0 </par>
+      <par name="maxSurfLoc" type="int"> 2139081118 </par>
+      <par name="multiComp" type="int"> 0 </par>
+      <par name="maxNtrSource" type="int"> 2139081118 </par>
+      <par name="maxILine" type="int"> 1 </par>
+      <par name="xILine1Start" type="float"> 0.0 </par>
+      <par name="cdpsAssigned" type="int"> 0 </par>
+      <par name="dCdpXLine" type="float"> 500.0 </par>
+      <par name="nILines" type="int"> 2 </par>
+      <par name="incOffsetBin" type="int"> 2139081118 </par>
+      <par name="minCdp" type="int"> 1 </par>
+      <par name="nSurfLocs" type="int"> 2139081118 </par>
+      <par name="offsetBinDist" type="float"> 3.4E38 </par>
+      <par name="maxXLine" type="int"> 500 </par>
+      <par name="finalDatum" type="float"> 3.4E38 </par>
+      <par name="yXLine1End" type="float"> 500.0 </par>
+      <par name="geomAssigned" type="int"> 0 </par>
+      <par name="yRef" type="double"> 0.0 </par>
+      <par name="incCdp" type="int"> 1 </par>
+      <par name="datumVel" type="float"> 3.4E38 </par>
+      <par name="azimuth" type="double"> 90.0 </par>
+      <par name="xSurfLoc1" type="double"> 3.3999999521443642E38 </par>
+      <par name="nXLines" type="int"> 501 </par>
+      <par name="nLiveGroups" type="int"> 2139081118 </par>
+      <par name="incSurfLoc" type="int"> 2139081118 </par>
+      <par name="maxNtrCdp" type="int"> 2139081118 </par>
+      <par name="maxCdp" type="int"> 1002 </par>
+      <par name="maxOffsetBin" type="int"> 2139081118 </par>
+      <par name="maxNtrRec" type="int"> 2139081118 </par>
+      <par name="minILine" type="int"> 0 </par>
+      <par name="maxChan" type="int"> 2139081118 </par>
+      <par name="minChan" type="int"> 2139081118 </par>
+      <par name="xRef" type="double"> 0.0 </par>
+      <par name="xILine1End" type="float"> 12500.0 </par>
+      <par name="minOffsetBin" type="int"> 2139081118 </par>
+      <par name="nLiveShots" type="int"> 2139081118 </par>
+      <par name="minXLine" type="int"> 0 </par>
+      <par name="minSurfLoc" type="int"> 2139081118 </par>
+      <par name="threeD" type="int"> 1 </par>
+      <par name="yILine1Start" type="float"> 0.0 </par>
+    </parset>
+    """
+
+
 
 
 class TraceHeader(object):
