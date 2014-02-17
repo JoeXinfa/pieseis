@@ -50,6 +50,9 @@ def create_javaseis(path):
     if os.path.exists(path):
         raise IOError("Path for JavaSeis dataset already exists..")
 
+    if not path.endswith(".js"):
+        path += ".js"
+
     # Construct a new "JavaSeis" file here.
     try:
         os.makedirs(path)
