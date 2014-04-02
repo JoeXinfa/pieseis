@@ -1,8 +1,9 @@
-#!/usr/bin/env python
-
 import os
 
 class JavaSeisDataset(object):
+    """
+    TODO: This class may be DEPRECATED (check jsfile.py:JavaSeisDataset)
+    """
 
     def __init__(self, filename):
         if not filename:
