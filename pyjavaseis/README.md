@@ -8,6 +8,12 @@ The purpose of this extension is the give users the ability to read and write to
 Having the ability to extract the raw data and it's corresponding meta data is essential - therefore I started this python extension - pyjavaseis
 
 
+## Development / extending pyjavaseis?
+Change the DEBUG flag in <code>utils/config.py</code> to <code>True</code> to get debug output into the log file.
+
+For normal usage I recommend setting this flag to <code>False</code>.
+
+
 ## Howto read a float and not double
 By using the <code>import struct</code> module one can use floats without allocation a double in the native code. For instance: 
 <code>
