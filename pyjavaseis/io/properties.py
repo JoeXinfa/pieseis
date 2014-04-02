@@ -260,7 +260,7 @@ class CustomProperties(Properties):
         +Parse 'GeomMatchesFlag'
         +Parse 'Geometry'
         """
-        self._field_instruments = FieldInstruments(self.get('FieldInstruments'))
+        #self._field_instruments = FieldInstruments(self.get('FieldInstruments'))
 
     @property
     def synthetic(self):
@@ -344,6 +344,10 @@ class CustomProperties(Properties):
 
     @property
     def field_instruments(self):
+        if not hasattr(self, '_field_instruments'):
+          # TODO: Create the reference / object instance here
+          self._field_instruments = FieldInstruments(self.get('FieldInstruments'))
+
         return self._field_instruments
 
     @property
