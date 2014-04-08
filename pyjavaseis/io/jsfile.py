@@ -25,22 +25,6 @@ JS_PREXMLVERSION = "2006.2"
 JS_VERSION = "2006.3"
 
 
-def open_javaseis(path):
-    """
-    Utility method to open a JavaSeis dataset. Will throw an
-    IOError exception in case of any errors, or a
-    JavaSeisDataset instance.
-    """
-    if not os.path.isdir(path):
-        # TODO: call create_javaseis(path) here
-        raise IOError("JavaSeis dataset does not exists")
-
-    if not os.access(path, os.R_OK):
-        raise IOError("Missing read access for JavaSeis dataset")
-
-    js_dataset = JavaSeisDataset(path)
-    return js_dataset
-
 def create_javaseis(path):
     """
     Utility method to write / construct a javaseis dataset.
@@ -88,6 +72,23 @@ class JavaSeisDataset(object):
 
         # self.read_data()
         self._is_open = True
+
+    @classmethod
+    def open_javaseis(cls, path):
+        """
+        Utility method to open a JavaSeis dataset. Will throw an
+        IOError exception in case of any errors, or a
+        JavaSeisDataset instance.
+        """
+        if not os.path.isdir(path):
+            # TODO: call create_javaseis(path) here
+            raise IOError("JavaSeis dataset does not exists")
+
+        if not os.access(path, os.R_OK):
+            raise IOError("Missing read access for JavaSeis dataset")
+
+        js_dataset = JavaSeisDataset(path)
+        return js_dataset
 
     def _validate_js_dir(self, path):
         """Gets called during the construction of this object instance"""
@@ -187,7 +188,7 @@ class JSFileReader(object):
         self._num_samples = self._num_traces = self._num_volumes = None
 
     def open(self, path, nthreads=2):
-        self._js_dataset = open_javaseis(path)
+        self._js_dataset = JavaSeisDataset.open_javaseis(path)
 
         self._num_samples = self._js_dataset.file_properties.axis_lengths[GridDefinition.SAMPLE_INDEX]
         self._num_traces = self._js_dataset.file_properties.axis_lengths[GridDefinition.TRACE_INDEX]
