@@ -15,11 +15,11 @@ For normal usage I recommend setting this flag to <code>False</code>.
 
 
 ## Howto read a float and not double
-By using the <code>import struct</code> module one can use floats without allocation a double in the native code. For instance: 
-<code>
-    import struct
-    struct.unpack("f", struct.pack("f", 0.05023324454))
-</code>
+By using the ```import struct``` module one can use floats without allocation a double in the native code. For instance: 
+```python
+import struct
+struct.unpack("f", struct.pack("f", 0.05023324454))
+```
 
 The challenge would be to do this in a Pythonic way and using threading without being restricted by the GIL..
 
