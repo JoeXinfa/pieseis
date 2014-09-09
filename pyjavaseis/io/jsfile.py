@@ -196,7 +196,8 @@ class JSFileReader(object):
         self._num_volumes = props.axis_lengths[GridDefinition.VOLUME_INDEX]
 
         self._nthreads = nthreads
-        self._header_length_in_bytes = props.record_lengths
+        self._header_length_in_bytes = self._js_dataset.\
+            trace_properties.record_lengths
         self._frame_header_length = self._header_length_in_bytes * \
             self._num_traces
 
@@ -208,6 +209,7 @@ class JSFileReader(object):
             # read TraceMap and check whether it contains a
             # value that differs from m_numTraces.
             # If so, then it is not regular, otherwise regular
+            print("Dataset is mapped!")
             self.is_mapped = True
             total_nr_of_live_traces = 0
             max_ints_to_read = 4096
@@ -217,11 +219,12 @@ class JSFileReader(object):
             #while nr_of_read_ints < self.total_nr_of_frames:
                 #ints_to_read = self.total_nr_of_frames - nr_of_read_ints
                 #if ints_to_read
-
-            with open(os.path.join(path, JS_TRACE_MAP), 'rb') as f:
+            tracemap_file = os.path.join(path, JS_TRACE_MAP)
+            print("Read binary data: {}".format(tracemap_file))
+            with open(tracemap_file, 'rb') as f:
                 # lese
-                f.read()
-                pass
+                data = f.read()
+                print("tracemap_file data length: {}".format(len(data)))
 
         else:
             # if not mapped, then it must be regular
