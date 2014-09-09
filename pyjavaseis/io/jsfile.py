@@ -176,6 +176,10 @@ class JavaSeisDataset(object):
     def custom_properties(self):
         return self._custom_properties
 
+    def __str__(self):
+        return "<JavaSeisDataset {}>" \
+            .format(self.path)
+
 
 class JSFileReader(object):
     def __init__(self, bufferSize=2097152):
