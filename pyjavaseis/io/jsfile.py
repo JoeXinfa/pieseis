@@ -215,9 +215,10 @@ class JSFileReader(object):
             # If so, then it is not regular, otherwise regular
             print("Dataset is mapped!")
             self.is_mapped = True
+            self.is_regular = True
             total_nr_of_live_traces = 0
             max_ints_to_read = 4096
-            int_buffer = [0] * max_ints_to_read
+            #int_buffer = [0] * max_ints_to_read
             nr_of_read_ints = 0
 
             #while nr_of_read_ints < self.total_nr_of_frames:
@@ -225,14 +226,25 @@ class JSFileReader(object):
                 #if ints_to_read
             tracemap_file = os.path.join(path, JS_TRACE_MAP)
             print("Read binary data: {}".format(tracemap_file))
-            with open(tracemap_file, 'rb') as f:
-                # lese
-                data = f.read()
-                print("tracemap_file data length: {}".format(len(data)))
 
+            with open(tracemap_file, 'rb') as f:
+                ints2read = min(
+                    (self.total_nr_of_frames - nr_of_read_ints),
+                    max_ints_to_read)
+                data = f.read(ints2read*4)  # int is 4 bytes
+                unpacked_data = struct.unpack(
+                    "={}".format("i"*ints2read), data)
+                for i in unpacked_data:
+                    total_nr_of_live_traces += i
+                    if i != self._num_traces:
+                        print("i != num_traces: %i != %i" %
+                             (i, self._num_traces))
+                        print("Not regular..")
+                        self.is_regular = False
         else:
             # if not mapped, then it must be regular
             self.is_mapped = False
+            self.is_regular = True
             total_nr_of_live_traces = self.total_nr_of_traces
 
     @property
