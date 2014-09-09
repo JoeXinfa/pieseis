@@ -43,9 +43,9 @@ def create_javaseis(path):
     except IOError as e:
         raise e
 
-
     # TODO: Construct all the meta files
-    raise NotImplementedError("Not yet fully implemented feature to create new JS datasets.")
+    raise NotImplementedError("Not yet fully implemented " +
+                              "feature to create new JS datasets.")
 
 
 class JavaSeisDataset(object):
@@ -125,7 +125,8 @@ class JavaSeisDataset(object):
 
         root = etree.XML(data)
         if root.get('name') != 'JavaSeis Metadata':
-            raise IOError(JS_FILE_PROPERTIES_XML+" is not a JavaSeis Metadata file!")
+            raise IOError(JS_FILE_PROPERTIES_XML +
+                          " is not a JavaSeis Metadata file!")
 
         children_nodes = list(root)
 
@@ -160,8 +161,6 @@ class JavaSeisDataset(object):
             return True
         return False
 
-
-
     def is_valid(self):
         return self._is_valid
 
@@ -190,22 +189,25 @@ class JSFileReader(object):
     def open(self, path, nthreads=2):
         self._js_dataset = JavaSeisDataset.open_javaseis(path)
 
-        self._num_samples = self._js_dataset.file_properties.axis_lengths[GridDefinition.SAMPLE_INDEX]
-        self._num_traces = self._js_dataset.file_properties.axis_lengths[GridDefinition.TRACE_INDEX]
-        self._num_volumes = self._js_dataset.file_properties.axis_lengths[GridDefinition.VOLUME_INDEX]
+        props = self._js_dataset.file_properties
+
+        self._num_samples = props.axis_lengths[GridDefinition.SAMPLE_INDEX]
+        self._num_traces = props.axis_lengths[GridDefinition.TRACE_INDEX]
+        self._num_volumes = props.axis_lengths[GridDefinition.VOLUME_INDEX]
 
         self._nthreads = nthreads
-        self._header_length_in_bytes = self._js_dataset.trace_properties.record_lengths
-        self._frame_header_length = self._header_length_in_bytes * self._num_traces
-
+        self._header_length_in_bytes = props.record_lengths
+        self._frame_header_length = self._header_length_in_bytes * \
+            self._num_traces
 
         self.is_regular = True
 
         # TODO: Use scipy / numpy to read the binary data?
 
         if self._js_dataset.file_properties.is_mapped():
-            # read TraceMap and check whether it contains a value that differs from m_numTraces
-            # if so, then it is not regular, otherwise regular
+            # read TraceMap and check whether it contains a
+            # value that differs from m_numTraces.
+            # If so, then it is not regular, otherwise regular
             self.is_mapped = True
             total_nr_of_live_traces = 0
             max_ints_to_read = 4096
@@ -225,7 +227,6 @@ class JSFileReader(object):
             # if not mapped, then it must be regular
             self.is_mapped = False
             total_nr_of_live_traces = self.total_nr_of_traces
-
 
     @property
     def total_nr_of_frames(self):
@@ -248,7 +249,6 @@ class JSFileReader(object):
         total_traces = self.nr_traces * self.total_nr_of_frames
         return total_traces
 
-
     @property
     def nr_samples(self):
         """Return the number of samples in the dataset"""
@@ -263,7 +263,6 @@ class JSFileReader(object):
     def dataset(self):
         return self._js_dataset
 
-
     @property
     def javaseis_dataset(self):
         return self._js_dataset
@@ -274,8 +273,7 @@ class JSFileReader(object):
 
 if __name__ == '__main__':
     testpath = "/home/asbjorn/datasets/2hots.js"
-    import os
-    if not os.path.exists(tetpath):
+    if not os.path.exists(testpath):
         print("'{0}' dataset does not exists..".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
     print jsDataset
