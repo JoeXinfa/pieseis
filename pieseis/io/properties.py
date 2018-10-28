@@ -123,6 +123,29 @@ class Properties(object):
         return '<%s %s>' % (self._name, stream_buffer.read())
 
 
+class VirtualFolders(Properties):
+
+    def __init__(self, root):
+        super(VirtualFolders, self).__init__(root, "VirtualFolders")
+
+    @property
+    def nr_directories(self):
+        value = self._attributes['NDIR']
+        return value.get('value')
+
+    @property
+    def secondary_folders(self):
+        secondaries = []
+        n = self.nr_directories
+        for i in range(n):
+            name = "FILESYSTEM-{}".format(i)
+            value = self._attributes[name]
+            value = value.get('value')
+            path = value.split(',')[0]
+            secondaries.append(path)
+        return secondaries
+
+
 class FileProperties(Properties):
 
     def __init__(self, root):

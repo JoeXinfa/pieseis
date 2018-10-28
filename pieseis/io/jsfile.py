@@ -2,8 +2,10 @@ import os
 from lxml import etree
 import struct
 
-from .properties import FileProperties, TraceProperties, CustomProperties
+from .properties import (FileProperties, TraceProperties, CustomProperties,
+    VirtualFolders)
 from .defs import GridDefinition
+from .trace_compressor import get_trace_compressor, get_trace_length
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -68,6 +70,11 @@ class JavaSeisDataset(object):
         self._files = os.listdir(path)
         self.path = path
         self._read_properties()
+        self._read_virtual_folders()
+
+        self._set_trace_format()
+        self._set_trace_compressor()
+        self._set_trace_length()
 
         # self.read_data()
         self._is_open = True
@@ -115,14 +122,15 @@ class JavaSeisDataset(object):
 
         return True
 
+    def _read_virtual_folders(self):
+        filename = os.path.join(self.path, JS_VIRTUAL_FOLDERS_XML)
+        root = parse_xml_file(filename)
+        self._virtual_folders = VirtualFolders(root)
+
     def _read_properties(self):
         filename = os.path.join(self.path, JS_FILE_PROPERTIES_XML)
+        root = parse_xml_file(filename)
 
-        data = None
-        with open(filename, 'r') as f:
-            data = f.read()
-
-        root = etree.XML(data)
         if root.get('name') != 'JavaSeis Metadata':
             raise IOError(JS_FILE_PROPERTIES_XML +
                           " is not a JavaSeis Metadata file!")
@@ -164,6 +172,10 @@ class JavaSeisDataset(object):
         return self._is_valid
 
     @property
+    def virtual_folders(self):
+        return self._virtual_folders
+
+    @property
     def file_properties(self):
         return self._file_properties
 
@@ -178,6 +190,32 @@ class JavaSeisDataset(object):
     def __str__(self):
         return "<JavaSeisDataset {}>" \
             .format(self.path)
+
+    def _set_trace_format(self):
+        trcfmt = self.file_properties.trace_format
+        if trcfmt == "FLOAT":
+            self._trace_format = "Float32"
+        elif trcfmt == "DOUBLE":
+            self._trace_format = "Float64"
+        elif trcfmt == "COMPRESSED_INT32":
+            self._trace_format = "Int32"
+        elif trcfmt == "COMPRESSED_INT16":
+            self._trace_format = "Int16"
+        else:
+            raise ValueError("Unrecognized trace format".format(trcfmt))
+
+    def _set_trace_compressor(self):
+        nsamples = self.file_properties.axis_lengths[0]
+        trace_format = self._trace_format
+        self._trace_compressor = get_trace_compressor(nsamples, trace_format)
+
+    def _set_trace_length(self):
+        compressor = self._trace_compressor
+        trace_format = self._trace_format
+        self._trace_length = get_trace_length(compressor, trace_format)
+
+    def trace_length(self):
+        return self._trace_length
 
 
 class JSFileReader(object):
@@ -238,6 +276,9 @@ class JSFileReader(object):
                 data = f.read(ints2read*4)  # int is 4 bytes
                 unpacked_data = struct.unpack(
                     "={}".format("i"*ints2read), data)
+                #print('tracemap type =', type(unpacked_data))
+                #print('tracemap len =', len(unpacked_data))
+                #print('tracemap data =', unpacked_data)
                 for i in unpacked_data:
                     total_nr_of_live_traces += i
                     if i != self._num_traces:
@@ -295,8 +336,30 @@ class JSFileReader(object):
     def javaseis_dataset(self):
         return self._js_dataset
 
-    def read(self):
+    def read_frame_trcs(self, iframe):
+        """
+        -i- iframe : int, index of frame, [1, nframe]
+        -o- trcs : array, float32, shape (nsample, ntrace)
+        """
+        trclen = self._js_dataset.trace_length
+
+        offset = (iframe - 1) * trclen * self.nr_traces
+        #ext = extentindex(io.trcextents, offset)
+
+
+    def read_frame_hdrs(self):
         pass
+
+
+def parse_xml_file(filename):
+    with open(filename, 'r') as f:
+        data = f.read()
+    root = etree.XML(data)
+    return root
+
+
+def get_extents():
+    pass
 
 
 if __name__ == '__main__':
