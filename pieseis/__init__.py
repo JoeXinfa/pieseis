@@ -1,8 +1,8 @@
 """
-=== pyjavaseis ===
+=== pieseis ===
 Python implementation of the JavaSeis seismic file format.
 """
 
-from pyjavaseis.utils.log import logger
+from pieseis.utils.log import logger
 
 __all__ = ['io','utils']

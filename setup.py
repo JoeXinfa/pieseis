@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from distutils.core import setup
@@ -9,14 +8,14 @@ from distutils.core import setup
 # packages,scripts
 
 setup(
-    name     = 'PyJavaSeis',
+    name     = 'PieSeis',
     version  = '0.1dev',
     author   = u"Asbjørn Alexander Fellinghaug",
     author_email = "asbjorn <dot> fellinghaug _dot_ com",
-    packages = ['pyjavaseis'],
+    packages = ['pieseis'],
     license  = 'GNU LGPL',
     long_description = """
-PyJavaSeis is a Python implementation of the seismic file format named JavaSeis.
+    PieSeis is a Python library for reading and writing JavaSeis dataset.
     """,
     install_requires=[
         "lxml>=3.1.0"

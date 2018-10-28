@@ -8,9 +8,9 @@ import unittest
 import sys
 sys.path.append('..')
 
-import pyjavaseis.io.jsfile as jsfile
-from pyjavaseis.io import properties
-from pyjavaseis.tests.config_for_test import TEST_DATASET
+import pieseis.io.jsfile as jsfile
+from pieseis.io import properties
+from pieseis.tests.config_for_test import TEST_DATASET
 
 
 class TestFileProperties(unittest.TestCase):

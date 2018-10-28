@@ -3,7 +3,7 @@
 Test read JavaSeis dataset
 """
 
-import pyjavaseis.io.jsfile as jsfile
+import pieseis.io.jsfile as jsfile
 
 PATH_TO_JS_DATASET = '/home/joe/Documents/synth.js'
 js_reader = jsfile.JSFileReader()
