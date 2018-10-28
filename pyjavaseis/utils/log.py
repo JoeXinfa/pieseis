@@ -1,5 +1,5 @@
 import logging
-import config
+from . import config
 
 logger = logging.getLogger(config.NAME)
 file_handler = logging.FileHandler(config.LOG_FILE)

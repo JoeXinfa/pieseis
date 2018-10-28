@@ -33,30 +33,31 @@ def parse_parset_element(element):
     elif element_type == 'boolean':
         retval = parset_element_get_value(value)
         if isinstance(retval, list):
-            retval = map(str2bool, retval)
+            retval = list(map(str2bool, retval))
         else:
             retval = str2bool(retval)
 
     elif element_type == 'int':
         retval = parset_element_get_value(value)
         if isinstance(retval, list):
-            retval = map(int, retval)
+            retval = list(map(int, retval))
         else:
             retval = int(retval)
 
     elif element_type == 'double' or element_type == 'float':
         retval = parset_element_get_value(value)
         if isinstance(retval, list):
-            retval = map(float, retval)
+            retval = list(map(float, retval))
         else:
             retval = float(retval)
 
+    # python2 long is int64, does python3 int work here?
     elif element_type == 'long':
         retval = parset_element_get_value(value)
         if isinstance(retval, list):
-            retval = map(long, retval)
+            retval = list(map(int, retval))
         else:
-            retval = long(retval)
+            retval = int(retval)
 
     return (element_type, retval)
 

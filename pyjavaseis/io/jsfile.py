@@ -1,10 +1,9 @@
 import os
-import dircache
 from lxml import etree
 import struct
 
-from properties import FileProperties, TraceProperties, CustomProperties
-from defs import GridDefinition
+from .properties import FileProperties, TraceProperties, CustomProperties
+from .defs import GridDefinition
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -61,12 +60,12 @@ class JavaSeisDataset(object):
         try:
             self._validate_js_dir(path)
             self._is_valid = True
-        except IOError, ioe:
+        except IOError as ioe:
             print("%s is not a valid dataset" % path)
             print("msg: %s" % ioe)
             self._is_valid = False
 
-        self._files = dircache.listdir(path)
+        self._files = os.listdir(path)
         self.path = path
         self._read_properties()
 
@@ -94,7 +93,7 @@ class JavaSeisDataset(object):
         """Gets called during the construction of this object instance"""
         def js_missing(f):
             raise IOError("Missing: "+f)
-        files = dircache.listdir(path)
+        files = os.listdir(path)
 
         if JS_FILE_PROPERTIES_XML not in files:
             js_missing(JS_FILE_PROPERTIES_XML)
@@ -197,7 +196,12 @@ class JSFileReader(object):
 
         self._num_samples = props.axis_lengths[GridDefinition.SAMPLE_INDEX]
         self._num_traces = props.axis_lengths[GridDefinition.TRACE_INDEX]
-        self._num_volumes = props.axis_lengths[GridDefinition.VOLUME_INDEX]
+        if len(props.axis_lengths) > GridDefinition.FRAME_INDEX:
+            self._num_frames = props.axis_lengths[GridDefinition.FRAME_INDEX]
+        if len(props.axis_lengths) > GridDefinition.VOLUME_INDEX:
+            self._num_volumes = props.axis_lengths[GridDefinition.VOLUME_INDEX]
+        if len(props.axis_lengths) > GridDefinition.HYPERCUBE_INDEX:
+            self._num_hypercubes = props.axis_lengths[GridDefinition.HYPERCUBE_INDEX]
 
         self._nthreads = nthreads
         self._header_length_in_bytes = self._js_dataset.\
@@ -257,7 +261,7 @@ class JSFileReader(object):
         nr_dim = self._js_dataset.file_properties.nr_dimensions
         total_frames = 1
         axis_lengths = self._js_dataset.file_properties.axis_lengths
-        for dimension in xrange(2, nr_dim-1):
+        for dimension in range(2, nr_dim):
             total_frames *= axis_lengths[dimension]
         return total_frames
 
@@ -279,6 +283,11 @@ class JSFileReader(object):
         return self._js_dataset.file_properties.axis_lengths[1]
 
     @property
+    def nr_frames(self):
+        """Return the number of frames in the dataset"""
+        return self._js_dataset.file_properties.axis_lengths[2]
+
+    @property
     def dataset(self):
         return self._js_dataset
 
@@ -295,4 +304,4 @@ if __name__ == '__main__':
     if not os.path.exists(testpath):
         print("'{0}' dataset does not exists..".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
-    print jsDataset
+    print(jsDataset)
