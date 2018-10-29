@@ -29,4 +29,12 @@ print(file_properties.physical_origins)
 print(file_properties.logical_deltas)
 print(file_properties.physical_deltas)
 print(file_properties.trace_format)
-print(dataset._trc_extents)
+#print(dataset._trc_extents)
+
+iframe = 1
+data = js_reader.read_frame_trcs(iframe)
+print(type(data))
+print(data.shape)
+m, n = data.shape
+print(data[0, 0])
+print(data[m-1, n-1])

@@ -6,7 +6,7 @@ import struct
 from .properties import (FileProperties, TraceProperties, CustomProperties,
     VirtualFolders, TraceFileXML, TraceHeadersXML)
 from .defs import GridDefinition
-from .trace_compressor import get_trace_compressor, get_trace_length
+from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -226,8 +226,7 @@ class JavaSeisDataset(object):
 
     def _set_trace_length(self):
         compressor = self._trace_compressor
-        trace_format = self._trace_format
-        self._trace_length = get_trace_length(compressor, trace_format)
+        self._trace_length = get_trace_length(compressor)
 
     def _set_trc_extents(self):
         xml = self._trace_file_xml
@@ -241,6 +240,11 @@ class JavaSeisDataset(object):
         filename = self.path
         self._hdr_extents = get_extents(xml, secondaries, filename)
 
+    def _get_fold(self, iframe):
+        # TODO read TraceMap
+        return self._file_properties.axis_lengths[1]
+
+    @property
     def trace_length(self):
         return self._trace_length
 
@@ -369,10 +373,25 @@ class JSFileReader(object):
         -o- trcs : array, float32, shape (nsample, ntrace)
         """
         trclen = self._js_dataset.trace_length
+        fold = self._js_dataset._get_fold(iframe)
 
+        #size = trclen * self.nr_traces # frame byte size
         offset = (iframe - 1) * trclen * self.nr_traces
-        #ext = extentindex(io.trcextents, offset)
-
+        extents = self._js_dataset._trc_extents
+        extent = get_extent_index(extents, offset)
+        offset -= extent['start']
+        trcfmt = self._js_dataset._trace_format
+        if trcfmt == "Int16":
+            f = open(extent['path'], "rb")
+            #f.seek(offset)
+            #bob = f.read(size)
+            cps = self._js_dataset._trace_compressor
+            array = unpack_frame(f, offset, cps, fold)
+            return array
+        elif trcfmt == "Float32":
+            pass
+        else:
+            raise ValueError("Unsupported trace format".format(trcfmt))
 
     def read_frame_hdrs(self):
         pass
@@ -390,6 +409,10 @@ def extent_dir(secondary, filename):
     if secondary == ".":
         return filename
 
+
+def get_extent_index(extents, offset):
+    i = int(offset / extents[0]['size'])
+    return extents[i]
 
 def get_extents(xml, secondaries, filename):
     """
