@@ -123,6 +123,58 @@ class Properties(object):
         return '<%s %s>' % (self._name, stream_buffer.read())
 
 
+class TraceHeadersXML(Properties):
+
+    def __init__(self, root):
+        super(TraceHeadersXML, self).__init__(root, "TraceHeaders")
+
+    @property
+    def nr_extents(self):
+        value = self._attributes['VFIO_MAXFILE']
+        return value.get('value')
+
+    @property
+    def extent_name(self):
+        value = self._attributes['VFIO_EXTNAME']
+        return value.get('value')
+
+    @property
+    def extent_size(self):
+        value = self._attributes['VFIO_EXTSIZE']
+        return value.get('value')
+
+    @property
+    def extent_maxpos(self):
+        value = self._attributes['VFIO_MAXPOS']
+        return value.get('value')
+
+
+class TraceFileXML(Properties):
+
+    def __init__(self, root):
+        super(TraceFileXML, self).__init__(root, "TraceFile")
+
+    @property
+    def nr_extents(self):
+        value = self._attributes['VFIO_MAXFILE']
+        return value.get('value')
+
+    @property
+    def extent_name(self):
+        value = self._attributes['VFIO_EXTNAME']
+        return value.get('value')
+
+    @property
+    def extent_size(self):
+        value = self._attributes['VFIO_EXTSIZE']
+        return value.get('value')
+
+    @property
+    def extent_maxpos(self):
+        value = self._attributes['VFIO_MAXPOS']
+        return value.get('value')
+
+
 class VirtualFolders(Properties):
 
     def __init__(self, root):

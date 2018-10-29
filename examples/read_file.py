@@ -3,6 +3,10 @@
 Test read JavaSeis dataset
 """
 
+# cd the example directory
+import sys
+sys.path.append('..')
+
 import pieseis.io.jsfile as jsfile
 
 PATH_TO_JS_DATASET = '/home/joe/Documents/181026_test.js'
@@ -25,3 +29,4 @@ print(file_properties.physical_origins)
 print(file_properties.logical_deltas)
 print(file_properties.physical_deltas)
 print(file_properties.trace_format)
+print(dataset._trc_extents)

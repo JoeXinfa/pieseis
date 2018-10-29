@@ -1,9 +1,10 @@
 import os
+import os.path as osp
 from lxml import etree
 import struct
 
 from .properties import (FileProperties, TraceProperties, CustomProperties,
-    VirtualFolders)
+    VirtualFolders, TraceFileXML, TraceHeadersXML)
 from .defs import GridDefinition
 from .trace_compressor import get_trace_compressor, get_trace_length
 
@@ -32,7 +33,7 @@ def create_javaseis(path):
     Will either throw a IOError exception or a
     JavaSeisDataset instance.
     """
-    if os.path.exists(path):
+    if osp.exists(path):
         raise IOError("Path for JavaSeis dataset already exists..")
 
     if not path.endswith(".js"):
@@ -55,7 +56,7 @@ class JavaSeisDataset(object):
     Reader and Writer classes.
     """
     def __init__(self, path):
-        if not os.path.isdir(path):
+        if not osp.isdir(path):
             self.is_valid = True
             raise IOError("Must be a folder: %s" % path)
 
@@ -71,10 +72,14 @@ class JavaSeisDataset(object):
         self.path = path
         self._read_properties()
         self._read_virtual_folders()
+        self._read_trace_file_xml()
+        self._read_trace_headers_xml()
 
         self._set_trace_format()
         self._set_trace_compressor()
         self._set_trace_length()
+        self._set_trc_extents()
+        self._set_hdr_extents()
 
         # self.read_data()
         self._is_open = True
@@ -86,7 +91,7 @@ class JavaSeisDataset(object):
         IOError exception in case of any errors, or a
         JavaSeisDataset instance.
         """
-        if not os.path.isdir(path):
+        if not osp.isdir(path):
             # TODO: call create_javaseis(path) here
             raise IOError("JavaSeis dataset does not exists")
 
@@ -122,13 +127,23 @@ class JavaSeisDataset(object):
 
         return True
 
+    def _read_trace_headers_xml(self):
+        filename = osp.join(self.path, JS_TRACE_HEADERS_XML)
+        root = parse_xml_file(filename)
+        self._trace_headers_xml = TraceHeadersXML(root)
+
+    def _read_trace_file_xml(self):
+        filename = osp.join(self.path, JS_TRACE_DATA_XML)
+        root = parse_xml_file(filename)
+        self._trace_file_xml = TraceFileXML(root)
+
     def _read_virtual_folders(self):
-        filename = os.path.join(self.path, JS_VIRTUAL_FOLDERS_XML)
+        filename = osp.join(self.path, JS_VIRTUAL_FOLDERS_XML)
         root = parse_xml_file(filename)
         self._virtual_folders = VirtualFolders(root)
 
     def _read_properties(self):
-        filename = os.path.join(self.path, JS_FILE_PROPERTIES_XML)
+        filename = osp.join(self.path, JS_FILE_PROPERTIES_XML)
         root = parse_xml_file(filename)
 
         if root.get('name') != 'JavaSeis Metadata':
@@ -214,6 +229,18 @@ class JavaSeisDataset(object):
         trace_format = self._trace_format
         self._trace_length = get_trace_length(compressor, trace_format)
 
+    def _set_trc_extents(self):
+        xml = self._trace_file_xml
+        secondaries = self._virtual_folders.secondary_folders
+        filename = self.path
+        self._trc_extents = get_extents(xml, secondaries, filename)
+
+    def _set_hdr_extents(self):
+        xml = self._trace_headers_xml
+        secondaries = self._virtual_folders.secondary_folders
+        filename = self.path
+        self._hdr_extents = get_extents(xml, secondaries, filename)
+
     def trace_length(self):
         return self._trace_length
 
@@ -266,7 +293,7 @@ class JSFileReader(object):
             #while nr_of_read_ints < self.total_nr_of_frames:
                 #ints_to_read = self.total_nr_of_frames - nr_of_read_ints
                 #if ints_to_read
-            tracemap_file = os.path.join(path, JS_TRACE_MAP)
+            tracemap_file = osp.join(path, JS_TRACE_MAP)
             print("Read binary data: {}".format(tracemap_file))
 
             with open(tracemap_file, 'rb') as f:
@@ -358,13 +385,60 @@ def parse_xml_file(filename):
     return root
 
 
-def get_extents():
-    pass
+def extent_dir(secondary, filename):
+    # TODO handle JAVASEIS_DATA_HOME
+    if secondary == ".":
+        return filename
+
+
+def get_extents(xml, secondaries, filename):
+    """
+    -i- xml : object, parsed XML file
+    -i- secondaries : list, element is string of secondary folder path
+    -i- filename : string, JavaSeis dataset filename
+    """
+    nextents = xml.nr_extents
+    basename = xml.extent_name
+    size = xml.extent_size
+    maxpos = xml.extent_maxpos
+    extents = [None] * nextents
+    for secondary in secondaries:
+        base_extpath = extent_dir(secondary, filename)
+        if osp.isdir(base_extpath):
+            names = get_names(base_extpath, basename)
+            for name in names:
+                i = int(name[len(basename):])
+                if i < nextents:
+                    start = i * size
+                    path = osp.join(base_extpath, name)
+                    extents[i] = make_extent(name, path, i, start, size)
+
+    # TODO add missing extents (i.e. extents with all empty frames)
+
+    # the last extent might be a different size
+    extent = extents[nextents-1]
+    extent['size'] = maxpos - extent['start']
+
+    return extents
+
+
+def make_extent(name, path, index, start, size):
+    return {'name': name, 'path': path, 'index': index, 'start': start,
+            'size': size}
+
+
+def get_names(path, start):
+    names = []
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if file.startswith(start) and not file.endswith('.xml'):
+                names.append(file)
+    return names
 
 
 if __name__ == '__main__':
     testpath = "/home/asbjorn/datasets/2hots.js"
-    if not os.path.exists(testpath):
+    if not osp.exists(testpath):
         print("'{0}' dataset does not exists..".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
     print(jsDataset)
