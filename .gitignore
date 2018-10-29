@@ -39,3 +39,8 @@ MANIFEST
 
 # logs
 *.log
+
+# VIM temporary and swap files
+*~
+*.swp
+*.swo
