@@ -60,16 +60,28 @@ def unpack_trace(stream, trace_compressor, trace_offset):
             scalar = 1.0 / scalar
         else:
             scalar = 0.0
-        #print('i =', i, scalar)
+        #print('i =', i, scalar, nwindows)
 
-        # scale 16-bit values to float values
-        for k in range(k1, k2):
-            stream.seek(trace_offset + 4 * nwindows + 2 * k1)
-            buffer = stream.read(2)
-            val = struct.unpack('<h', buffer)[0] # unpack int16
-            val = scalar * (32769.0 + val) # 2^15 = 32768
-            #print('k =', k, val)
-            trace[k] = val
+        stream.seek(trace_offset + 4 * nwindows + 2 * k1)
+
+        # read/unpack vector sample by sample
+#        for k in range(k1, k2):
+#            buffer = stream.read(2)
+#            val = struct.unpack('<h', buffer)[0] # unpack int16
+#            #print('k =', k, val)
+#            # int16 range is [-32768, 32767] as 2^15 = 32768
+#            val = scalar * np.int16(val - 32767.0)
+#            trace[k] = val
+
+        # read/unpack vector instead of per sample
+        n = k2 - k1
+        nb = 2 * n # number of bytes in this window
+        fmt = '<' + str(n) + 'h'
+        buffer = stream.read(nb)
+        val = np.array(struct.unpack(fmt, buffer)) - 32767.0
+        val = scalar * val.astype('int16')
+        trace[k1:k2] = val
+
     return trace
 
 
@@ -78,8 +90,8 @@ def unpack_frame(stream, frame_offset, trace_compressor, fold):
         raise ValueError('This method only works for Int16')
     trclen = get_trace_length(trace_compressor)
     frame = []
-    for i in range(fold):
-    #for i in range(1):
+    #for i in range(fold):
+    for i in range(1):
         trace_offset = i * trclen + frame_offset
         trace = unpack_trace(stream, trace_compressor, trace_offset)
         frame.append(trace)

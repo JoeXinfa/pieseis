@@ -9,7 +9,13 @@ sys.path.append('..')
 
 import pieseis.io.jsfile as jsfile
 
-PATH_TO_JS_DATASET = '/home/joe/Documents/181026_test.js'
+#PATH_TO_JS_DATASET = '/home/joe/Documents/181026_test.js'
+PATH_TO_JS_DATASET = '/home/joe/Documents/181030_test.js'
+
+#import os
+#os.environ['JAVASEIS_DATA_HOME'] = '/data/primary/PromaxDataHome'
+#PATH_TO_JS_DATASET = '/data/primary/PromaxDataHome/area/line/181030_test.js'
+
 js_reader = jsfile.JSFileReader()
 js_reader.open(PATH_TO_JS_DATASET)
 
@@ -37,4 +43,5 @@ print(type(data))
 print(data.shape)
 m, n = data.shape
 print(data[0, 0])
-print(data[m-1, n-1])
+#print(data[m-1, n-1])
+print(data[0,:]) # the first trace

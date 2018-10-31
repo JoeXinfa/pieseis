@@ -383,8 +383,6 @@ class JSFileReader(object):
         trcfmt = self._js_dataset._trace_format
         if trcfmt == "Int16":
             f = open(extent['path'], "rb")
-            #f.seek(offset)
-            #bob = f.read(size)
             cps = self._js_dataset._trace_compressor
             array = unpack_frame(f, offset, cps, fold)
             return array
