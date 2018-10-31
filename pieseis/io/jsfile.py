@@ -405,9 +405,39 @@ def parse_xml_file(filename):
 
 
 def extent_dir(secondary, filename):
-    # TODO handle JAVASEIS_DATA_HOME
+    """
+    -i- secondary : string, path of JavaSeis secondary disk
+    -i- filename : string, JavaSeis dataset name
+    -o- extdir : string, the JavaSeis dataset secondary directory
+    """
+    isrelative = osp.isabs(filename) == False
+    pmdh = "PROMAX_DATA_HOME"
+    jsdh = "JAVASEIS_DATA_HOME"
+    datahome = os.environ[pmdh] if pmdh in os.environ else ""
+    datahome = os.environ[jsdh] if jsdh in os.environ else datahome
     if secondary == ".":
-        return filename
+        return osp.abspath(filename)
+    elif datahome != "":
+        filename = osp.abspath(filename)
+        if datahome in filename:
+            # TODO test with Windows paths
+            return filename.replace(datahome, secondary)
+        message1 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set, and " +\
+        "JavaSeis filename is relative, but the working directory is not " +\
+        "consistent with JAVASEIS_DATA_HOME: datahome={}, filename={}. " +\
+        "Either unset JAVASEIS_DATA_HOME and PROMAX_DATA_HOME, " +\
+        "make your working directory correspond to datahome, " +\
+        "or use absolute file paths.".format(datahome, filename)
+        message2 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set " +\
+        "but does not seem correct: " +\
+        "datahome={}, filename={}".format(datahome, filename)
+        if isrelative and not os.getcwd().startswith(datahome):
+            raise ValueError(message1)
+        raise ValueError(message2)
+    elif isrelative:
+        return osp.join(secondary, filename)
+    else:
+        pass # TODO joinpath(secondary, is_windows() ? filename[5:end] : filename[2:end])
 
 
 def get_extent_index(extents, offset):
