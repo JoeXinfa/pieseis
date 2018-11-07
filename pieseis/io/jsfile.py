@@ -4,9 +4,10 @@ from lxml import etree
 import struct
 
 from .properties import (FileProperties, TraceProperties, CustomProperties,
-    VirtualFolders, TraceFileXML, TraceHeadersXML)
+    VirtualFolders, TraceFileXML, TraceHeadersXML, TraceHeader)
 from .defs import GridDefinition
 from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
+from .compat import dictJStoPM
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -55,51 +56,72 @@ class JavaSeisDataset(object):
     Class to host a JavaSeis dataset. This class will be used by both the
     Reader and Writer classes.
     """
-    def __init__(self, path):
-        if not osp.isdir(path):
-            self.is_valid = True
-            raise IOError("Must be a folder: %s" % path)
+    def __init__(self, filename):
+#        if not osp.isdir(filename):
+#            self.is_valid = True
+#            raise IOError("Must be a folder: %s" % filename)
+#
+#        try:
+#            self._validate_js_dir(filename)
+#            self._is_valid = True
+#        except IOError as ioe:
+#            print("%s is not a valid dataset" % filename)
+#            print("msg: %s" % ioe)
+#            self._is_valid = False
 
-        try:
-            self._validate_js_dir(path)
-            self._is_valid = True
-        except IOError as ioe:
-            print("%s is not a valid dataset" % path)
-            print("msg: %s" % ioe)
-            self._is_valid = False
-
-        self._files = os.listdir(path)
-        self.path = path
-        self._read_properties()
-        self._read_virtual_folders()
-        self._read_trace_file_xml()
-        self._read_trace_headers_xml()
-
-        self._set_trace_format()
-        self._set_trace_compressor()
-        self._set_trace_length()
-        self._set_trc_extents()
-        self._set_hdr_extents()
+        #self._files = os.listdir(filename)
+        self.path = filename
 
         # self.read_data()
-        self._is_open = True
+        #self._is_open = True
 
     @classmethod
-    def open_javaseis(cls, path):
+    def open_javaseis(cls, filename, mode='r'):
         """
+        -i- filename : string, path of the JavaSeis dataset e.g. "data.js"
+        -i- mode : string, "r" read, "w" write/create, "r+" read and write
         Utility method to open a JavaSeis dataset. Will throw an
         IOError exception in case of any errors, or a
         JavaSeisDataset instance.
         """
-        if not osp.isdir(path):
-            # TODO: call create_javaseis(path) here
-            raise IOError("JavaSeis dataset does not exists")
+        jsd = JavaSeisDataset(filename)
+        if mode == 'r' or mode == 'r+':
+            if not osp.isdir(filename):
+                # TODO: call create_javaseis(filename) here
+                raise IOError("JavaSeis dataset does not exists")
+            if not os.access(filename, os.R_OK):
+                raise IOError("Missing read access for JavaSeis dataset")
 
-        if not os.access(path, os.R_OK):
-            raise IOError("Missing read access for JavaSeis dataset")
+            jsd._read_properties()
+            jsd._set_trace_format()
 
-        js_dataset = JavaSeisDataset(path)
-        return js_dataset
+            trace_properties = jsd._trace_properties._trace_headers
+            axis_labels = jsd._file_properties.axis_labels
+            _axis_propdefs = get_axis_propdefs(trace_properties, axis_labels)
+            #_axis_lengths = jsd._file_properties.axis_lengths
+            #_trace_format = jsd._trace_format
+
+        jsd._set_trace_compressor()
+        #jsd.properties = trace_properties
+        jsd.axis_propdefs = _axis_propdefs
+        #jsd.compressor = jsd._trace_compressor
+        jsd.filename = filename
+        jsd.mode = mode
+        jsd.current_volume = -1
+        jsd.header_length = jsd._trace_properties._total_bytes
+
+        if mode == 'r' or mode == 'r+':
+            jsd._read_virtual_folders()
+            jsd._read_trace_file_xml()
+            jsd._read_trace_headers_xml()
+
+            #jsd._set_trace_format()
+            #jsd._set_trace_compressor()
+            jsd._set_trace_length()
+            jsd._set_trc_extents()
+            jsd._set_hdr_extents()
+
+        return jsd
 
     def _validate_js_dir(self, path):
         """Gets called during the construction of this object instance"""
@@ -164,12 +186,7 @@ class JavaSeisDataset(object):
         parset_custom_properties = get_parset('CustomProperties')
 
         self._file_properties = FileProperties(parset_file_properties)
-        #print(self._file_properties)
-        #print(self._file_properties._attributes)
-
         self._trace_properties = TraceProperties(parset_trace_properties)
-        #print(self._trace_properties)
-
         self._custom_properties = CustomProperties(parset_custom_properties)
 
     def is_open(self):
@@ -194,13 +211,25 @@ class JavaSeisDataset(object):
     def file_properties(self):
         return self._file_properties
 
+    @file_properties.setter
+    def file_properties(self, x):
+        self._file_properties = x
+
     @property
     def trace_properties(self):
         return self._trace_properties
 
+    @trace_properties.setter
+    def trace_properties(self, x):
+        self._trace_properties = x
+
     @property
     def custom_properties(self):
         return self._custom_properties
+
+    @custom_properties.setter
+    def custom_properties(self, x):
+        self._custom_properties = x
 
     def __str__(self):
         return "<JavaSeisDataset {}>" \
@@ -274,7 +303,7 @@ class JSFileReader(object):
 
         self._nthreads = nthreads
         self._header_length_in_bytes = self._js_dataset.\
-            trace_properties.record_lengths
+            trace_properties.total_bytes
         self._frame_header_length = self._header_length_in_bytes * \
             self._num_traces
 
@@ -370,7 +399,7 @@ class JSFileReader(object):
     def read_frame_trcs(self, iframe):
         """
         -i- iframe : int, index of frame, [1, nframe]
-        -o- trcs : array, float32, shape (nsample, ntrace)
+        -o- trcs : array, float32, shape (ntrace, nsample)
         """
         trclen = self._js_dataset.trace_length
         fold = self._js_dataset._get_fold(iframe)
@@ -485,6 +514,32 @@ def get_names(path, start):
             if file.startswith(start) and not file.endswith('.xml'):
                 names.append(file)
     return names
+
+
+def get_axis_propdefs(trace_headers, axis_labels):
+    axis_propdefs = {}
+    for i, label in enumerate(axis_labels):
+        axis_propdefs[label] = get_axis_propdef(trace_headers, label, i+1)
+    return axis_propdefs
+
+
+def get_axis_propdef(trace_headers, label, dim):
+    # map from JavaSeis axis name to ProMax property label
+    plabel = dictJStoPM[label] if label in dictJStoPM else label
+
+    for key, value in trace_headers.items():
+        if value.label == plabel:
+            return value
+
+    # The sample and trace labels do not need a corresponding trace property.
+    # Therefore, these should be considered valid datasets.
+    if dim == 1 or dim == 2:
+        th = TraceHeader()
+        th.init_from_given(label, label, 'int32', 1, 0)
+        return th
+
+    raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
+                     "corresponding trace property".format(label))
 
 
 if __name__ == '__main__':

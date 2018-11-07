@@ -300,6 +300,15 @@ class TraceProperties(Properties):
         self._header_names = [self._attributes[x]['label']['value'] for x in self._attributes]
         self._trace_headers_cache = {}
 
+        self._trace_headers = {}
+        for header, attributes in self._attributes.items():
+            self._trace_headers[header] = TraceHeader(attributes)
+
+        total_bytes = 0
+        for key, value in self._trace_headers.items():
+            total_bytes += value.format_size
+        self._total_bytes = total_bytes
+
     @property
     def header_names(self):
         return self._header_names
@@ -319,13 +328,9 @@ class TraceProperties(Properties):
         return self._trace_headers_cache[header_name]
 
     @property
-    def record_lengths(self):
+    def total_bytes(self):
         """Return total number of bytes for all the headers"""
-        total_bytes = 0
-        for header_name in self.header_names:
-            pass
-
-        return total_bytes
+        return self._total_bytes
 
 
 class CustomProperties(Properties):
@@ -492,19 +497,48 @@ class CustomProperties(Properties):
     """
 
 
-
-
 class TraceHeader(object):
     """Correspond to a TraceHeader entry from the FileProperties.xml file"""
     def __init__(self, val=None):
-        if not val:
-            raise Exception("Missing trace header value")
+#        if not val:
+#            raise Exception("Missing trace header value")
+        if val is not None:
+            self.init_from_parset(val)
 
-        self.byte_offset = val['byteOffset']['value']
+    def init_from_parset(self, val):
+        self.label = val['label']['value']
         self.description = val['description']['value']
         self.format = val['format']['value']
-        self.label = val['label']['value']
         self.element_count = val['elementCount']['value']
+        self.byte_offset = val['byteOffset']['value']
+        self.format_string_to_type()
+
+    def init_from_given(self, label, description, fmt, count, offset):
+        self.label = label
+        self.description = description
+        self.format = fmt
+        self.element_count = count
+        self.byte_offset = offset
+        self.format_string_to_type()
+
+    def format_string_to_type(self):
+        if self.format == "INTEGER":
+            self.format_type = 'int32'
+            self.format_size = 4 # bytes
+        elif self.format == "LONG":
+            self.format_type = 'int64'
+            self.format_size = 8 # bytes
+        elif self.format == "FLOAT":
+            self.format_type = 'float32'
+            self.format_size = 4 # bytes
+        elif self.format == "DOUBLE":
+            self.format_type = 'float64'
+            self.format_size = 8 # bytes
+        elif self.format == "BYTESTRING":
+            self.format_type = 'uint8'
+            self.format_size = 1 # bytes
+        else:
+            raise ValueError("unrecognized format".format(self.format))
 
     def __eq__(self, other):
         if self.label == other.label:

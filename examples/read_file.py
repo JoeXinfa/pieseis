@@ -10,7 +10,8 @@ sys.path.append('..')
 import pieseis.io.jsfile as jsfile
 
 #PATH_TO_JS_DATASET = '/home/joe/Documents/181026_test.js'
-PATH_TO_JS_DATASET = '/home/joe/Documents/181030_test.js'
+#PATH_TO_JS_DATASET = '/home/joe/Documents/181030_test.js'
+PATH_TO_JS_DATASET = 'C:/Users/xinfa/Documents/181030_test.js'
 
 #import os
 #os.environ['JAVASEIS_DATA_HOME'] = '/data/primary/PromaxDataHome'
@@ -28,8 +29,12 @@ print("Samples: {0}, Traces: {1}, Frames: {2}".format(
     js_reader.nr_traces,
     js_reader.nr_frames))
 
-print(file_properties.axis_labels)
-print(file_properties.axis_lengths)
+print("axis labels =", file_properties.axis_labels)
+print("axis lengths =", file_properties.axis_lengths)
+print("header entries =", len(dataset._trace_properties._trace_headers))
+print("header bytes =", dataset.header_length)
+exit()
+
 print(file_properties.logical_origins)
 print(file_properties.physical_origins)
 print(file_properties.logical_deltas)

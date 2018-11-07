@@ -90,8 +90,8 @@ def unpack_frame(stream, frame_offset, trace_compressor, fold):
         raise ValueError('This method only works for Int16')
     trclen = get_trace_length(trace_compressor)
     frame = []
-    #for i in range(fold):
-    for i in range(1):
+    #for i in range(1): # for quick testing
+    for i in range(fold):
         trace_offset = i * trclen + frame_offset
         trace = unpack_trace(stream, trace_compressor, trace_offset)
         frame.append(trace)
