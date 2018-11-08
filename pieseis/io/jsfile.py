@@ -111,6 +111,23 @@ class JavaSeisDataset(object):
         jsd.header_length = jsd._trace_properties._total_bytes
 
         if mode == 'r' or mode == 'r+':
+            filename = osp.join(jsd.path, JS_FILE_STUB)
+            jsd.description = get_description(filename)
+
+            jsd.mapped          = jsd._file_properties.is_mapped()
+            jsd.data_type       = jsd._file_properties.data_type
+            jsd.data_format     = jsd._trace_format
+            jsd.data_order      = jsd._file_properties.byte_order
+            jsd.axis_lengths    = jsd._file_properties.axis_lengths
+            jsd.axis_units      = jsd._file_properties.axis_units
+            jsd.axis_domains    = jsd._file_properties.axis_domains
+            jsd.axis_lstarts    = jsd._file_properties.logical_origins
+            jsd.axis_lincs      = jsd._file_properties.logical_deltas
+            jsd.axis_pstarts    = jsd._file_properties.physical_origins
+            jsd.axis_pincs      = jsd._file_properties.physical_deltas
+            jsd.data_properties = jsd._custom_properties.data_properties
+            jsd.geom            = None
+
             jsd._read_virtual_folders()
             jsd._read_trace_file_xml()
             jsd._read_trace_headers_xml()
@@ -540,6 +557,17 @@ def get_axis_propdef(trace_headers, label, dim):
 
     raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
                      "corresponding trace property".format(label))
+
+
+def get_description(filename):
+    with open(filename, 'r') as f:
+        for line in f:
+            if line[0] != '#':
+                line = line.strip()
+                columns = line.split('=')
+                if columns[0] == "DescriptiveName":
+                    return columns[1]
+    return ""
 
 
 if __name__ == '__main__':

@@ -44,3 +44,6 @@ MANIFEST
 *~
 *.swp
 *.swo
+
+# Examples
+examples/read_temp.py

@@ -33,6 +33,8 @@ print("axis labels =", file_properties.axis_labels)
 print("axis lengths =", file_properties.axis_lengths)
 print("header entries =", len(dataset._trace_properties._trace_headers))
 print("header bytes =", dataset.header_length)
+for prop in dataset.data_properties:
+    print("data property =", prop.label, prop.format, prop.value)
 exit()
 
 print(file_properties.logical_origins)

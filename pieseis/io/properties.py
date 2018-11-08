@@ -281,11 +281,16 @@ class FileProperties(Properties):
         value = self._attributes['AxisUnits']
         return value.get('value')
 
+    @property
+    def axis_domains(self):
+        value = self._attributes['AxisDomains']
+        return value.get('value')
+
     def get_axis_unit(self, dimension):
         return self.get_axis_units()[dimension]
 
     @property
-    def byteorder(self):
+    def byte_order(self):
         return self._attributes['ByteOrder']['value']
 
     @property
@@ -342,6 +347,15 @@ class CustomProperties(Properties):
         +Parse 'Geometry'
         """
         #self._field_instruments = FieldInstruments(self.get('FieldInstruments'))
+
+        self.data_properties = []
+        parsets = ["FieldInstruments", "Geometry", "extendedParmTable"]
+        for key in self._attributes:
+            if key not in parsets:
+                name = key
+                fmt = self._attributes[key]['type']
+                value = self._attributes[key]['value']
+                self.data_properties.append(DataProperty(name, fmt, value))
 
     @property
     def synthetic(self):
@@ -544,3 +558,13 @@ class TraceHeader(object):
         if self.label == other.label:
             return True
         return False
+
+
+class DataProperty(object):
+    """
+    Correspond to a CustomProperties entry from the FileProperties.xml file
+    """
+    def __init__(self, label, fmt, value):
+        self.label = label
+        self.format = fmt
+        self.value = value
