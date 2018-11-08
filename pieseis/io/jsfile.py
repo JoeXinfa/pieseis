@@ -238,13 +238,13 @@ class JavaSeisDataset(object):
     def _set_trace_format(self):
         trcfmt = self.file_properties.trace_format
         if trcfmt == "FLOAT":
-            self._trace_format = "Float32"
+            self._trace_format = "float32"
         elif trcfmt == "DOUBLE":
-            self._trace_format = "Float64"
+            self._trace_format = "float64"
         elif trcfmt == "COMPRESSED_INT32":
-            self._trace_format = "Int32"
+            self._trace_format = "int32"
         elif trcfmt == "COMPRESSED_INT16":
-            self._trace_format = "Int16"
+            self._trace_format = "int16"
         else:
             raise ValueError("Unrecognized trace format".format(trcfmt))
 
@@ -410,12 +410,12 @@ class JSFileReader(object):
         extent = get_extent_index(extents, offset)
         offset -= extent['start']
         trcfmt = self._js_dataset._trace_format
-        if trcfmt == "Int16":
+        if trcfmt == "int16":
             f = open(extent['path'], "rb")
             cps = self._js_dataset._trace_compressor
             array = unpack_frame(f, offset, cps, fold)
             return array
-        elif trcfmt == "Float32":
+        elif trcfmt == "float32":
             pass
         else:
             raise ValueError("Unsupported trace format".format(trcfmt))

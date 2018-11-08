@@ -14,11 +14,11 @@ def trace_compressor(nsamples, nwindows, windowln, trace_format):
 
 
 def get_trace_compressor(nsamples, trace_format):
-    if trace_format == "Int16":
+    if trace_format == "int16":
         windowln = 100
         nwindows = floor((nsamples - 1.0) / windowln) + 1
         return trace_compressor(nsamples, nwindows, windowln, trace_format)
-    elif trace_format == "Float32":
+    elif trace_format == "float32":
         windowln = nsamples
         nwindows = 1
         return trace_compressor(nsamples, nwindows, windowln, trace_format)
@@ -28,12 +28,12 @@ def get_trace_compressor(nsamples, trace_format):
 
 def get_trace_length(trace_compressor):
     cps = trace_compressor
-    if cps['trace_format'] == "Int16":
+    if cps['trace_format'] == "int16":
         if cps['nsamples'] % 2 == 0: # is even
             trclen = 4 * cps['nwindows'] + 2 * cps['nsamples']
         else:
             trclen = 4 * cps['nwindows'] + 2 * (cps['nsamples'] + 1)
-    elif cps['trace_format'] == "Float32":
+    elif cps['trace_format'] == "float32":
         trclen = 4 * cps['nsamples']
     else:
         raise ValueError("unsupported trace format: {}".format(cps['trace_format']))
@@ -86,8 +86,8 @@ def unpack_trace(stream, trace_compressor, trace_offset):
 
 
 def unpack_frame(stream, frame_offset, trace_compressor, fold):
-    if trace_compressor['trace_format'] != 'Int16':
-        raise ValueError('This method only works for Int16')
+    if trace_compressor['trace_format'] != 'int16':
+        raise ValueError('This method only works for int16')
     trclen = get_trace_length(trace_compressor)
     frame = []
     #for i in range(1): # for quick testing
