@@ -306,8 +306,9 @@ class TraceProperties(Properties):
         self._trace_headers_cache = {}
 
         self._trace_headers = {}
-        for header, attributes in self._attributes.items():
-            self._trace_headers[header] = TraceHeader(attributes)
+        for entry, attributes in self._attributes.items():
+            label = attributes['label']['value']
+            self._trace_headers[label] = TraceHeader(parset=attributes)
 
         total_bytes = 0
         for key, value in self._trace_headers.items():
@@ -513,26 +514,35 @@ class CustomProperties(Properties):
 
 class TraceHeader(object):
     """Correspond to a TraceHeader entry from the FileProperties.xml file"""
-    def __init__(self, val=None):
-#        if not val:
+    def __init__(self, parset=None, values=None):
+        """
+        -i- parset : dict, from parsing one TraceHeader entry in
+            the FileProperties.xml file.
+        -i- values : tuple, (label, description, format, count, offset)
+        """
+#        if not parset:
 #            raise Exception("Missing trace header value")
-        if val is not None:
-            self.init_from_parset(val)
+        if parset is not None:
+            self.init_from_parset(parset)
+        if values is not None:
+            if len(values) != 5:
+                raise ValueError("Tuple values must have 5 elements")
+            self.init_from_tuple(values)
 
-    def init_from_parset(self, val):
-        self.label = val['label']['value']
-        self.description = val['description']['value']
-        self.format = val['format']['value']
-        self.element_count = val['elementCount']['value']
-        self.byte_offset = val['byteOffset']['value']
+    def init_from_parset(self, parset):
+        self.label = parset['label']['parsetue']
+        self.description = parset['description']['parsetue']
+        self.format = parset['format']['parsetue']
+        self.element_count = parset['elementCount']['parsetue']
+        self.byte_offset = parset['byteOffset']['parsetue']
         self.format_string_to_type()
 
-    def init_from_given(self, label, description, fmt, count, offset):
-        self.label = label
-        self.description = description
-        self.format = fmt
-        self.element_count = count
-        self.byte_offset = offset
+    def init_from_tuple(self, values):
+        self.label = values[0]
+        self.description = values[1]
+        self.format = values[2]
+        self.element_count = values[3]
+        self.byte_offset = values[4]
         self.format_string_to_type()
 
     def format_string_to_type(self):
