@@ -11,6 +11,7 @@ from .properties import (FileProperties, TraceProperties, CustomProperties,
 from .defs import GridDefinition
 from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
 from .compat import dictJStoPM
+from .stock_props import minimal_props, stock_props
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -79,7 +80,31 @@ class JavaSeisDataset(object):
         #self._is_open = True
 
     @classmethod
-    def open_javaseis(cls, filename, mode='r'):
+    def open(cls, filename,
+        mode                = 'r',
+        description         = "",
+        mapped              = True,
+        data_type           = None,
+        data_format         = "float32",
+        data_order          = "",
+        axis_lengths        = [],
+        axis_propdefs       = {},
+        axis_units          = [],
+        axis_domains        = [],
+        axis_lstarts        = [],
+        axis_lincs          = [],
+        axis_pstarts        = [],
+        axis_pincs          = [],
+        data_properties     = [],
+        properties          = {},
+        geometry            = None,
+        secondaries         = None,
+        nextents            = 0,
+        similar_to          = "",
+        properties_add      = {},
+        properties_rm       = {},
+        data_properties_add = [],
+        data_properties_rm  = []):
         """
         -i- filename : string, path of the JavaSeis dataset e.g. "data.js"
         -i- mode : string, "r" read, "w" write/create, "r+" read and write
@@ -101,13 +126,33 @@ class JavaSeisDataset(object):
             trace_properties = jsd._trace_properties._trace_headers
             axis_labels = jsd._file_properties.axis_labels
             _axis_propdefs = get_axis_propdefs(trace_properties, axis_labels)
-            #_axis_lengths = jsd._file_properties.axis_lengths
-            #_trace_format = jsd._trace_format
+            _axis_lengths = jsd._file_properties.axis_lengths
+            _data_format = jsd._trace_format
+
+        elif mode == 'w' and similar_to == "":
+            ndim = len(axis_lengths)
+            if ndim < 2:
+                raise ValueError("axis dimension must >= 2")
+            trace_properties, _axis_propdefs = get_trace_properties(ndim,
+                properties, properties_add, properties_rm, axis_propdefs,
+                similar_to)
+            _axis_lengths = axis_lengths
+            _data_format = data_format
+
+        #print('trace_properties =', trace_properties)
+        #print('_axis_propdefs =', _axis_propdefs)
+        for key, th in trace_properties.items():
+            print(key, th.label, th.format, th.element_count, th.byte_offset)
+        for key, th in _axis_propdefs.items():
+            print(key, th.label, th.format, th.element_count, th.byte_offset)
+        print('_axis_lengths =', _axis_lengths)
+        print('_data_format =', _data_format)
+        exit()
 
         jsd._set_trace_compressor()
-        #jsd.properties = trace_properties
+        jsd.properties = trace_properties
         jsd.axis_propdefs = _axis_propdefs
-        #jsd.compressor = jsd._trace_compressor
+        jsd.compressor = jsd._trace_compressor
         jsd.filename = filename
         jsd.mode = mode
         jsd.current_volume = -1
@@ -321,7 +366,7 @@ class JSFileReader(object):
         self._num_samples = self._num_traces = self._num_volumes = None
 
     def open(self, path, nthreads=2):
-        self._js_dataset = JavaSeisDataset.open_javaseis(path)
+        self._js_dataset = JavaSeisDataset.open(path)
 
         props = self._js_dataset.file_properties
 
@@ -567,9 +612,7 @@ def get_axis_propdef(trace_headers, label, dim):
     # The sample and trace labels do not need a corresponding trace property.
     # Therefore, these should be considered valid datasets.
     if dim == 1 or dim == 2:
-        th = TraceHeader()
-        th.init_from_given(label, label, 'int32', 1, 0)
-        return th
+        return TraceHeader(values=(label, label, 'int32', 1, 0))
 
     raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
                      "corresponding trace property".format(label))
@@ -598,6 +641,99 @@ def get_status(filename):
                 if columns[0] == "HasTraces" and columns[1] == 'true':
                     return True
     return False
+
+
+def get_trace_properties(ndim, property_defs, property_defs_add,
+    property_defs_rm, axis_propdefs, similar_to):
+    """
+    -i- ndim : int, number of dimensions
+    -i- property_defs : dict
+    -i- property_defs_add : dict
+    -i- property_defs_rm : dict
+    -i- axis_propdefs : dict
+    -i- similar_to : string
+    'defs' is short for 'defaults' or 'defined'.
+    """
+    if similar_to == "":
+        _property_defs = property_defs # need copy.deepcopy?
+        _axis_propdefs = axis_propdefs
+    else:
+        jsd = JavaSeisDataset.open(similar_to, mode='r')
+
+        # special handling for trace properties
+        if len(property_defs) == 0:
+            _property_defs = jsd.properties
+        else:
+            assert len(property_defs_add) == 0
+            assert len(property_defs_rm) == 0
+
+        for key in property_defs_add:
+            if key not in _property_defs:
+                _property_defs[key] = property_defs_add[key]
+        for key in property_defs_rm:
+            if key in _property_defs:
+                _property_defs.pop(key)
+
+        if len(axis_propdefs) == 0:
+            _axis_propdefs = jsd.axis_propdefs
+        else:
+            _axis_propdefs = axis_propdefs
+
+    # initialize trace properties to an empty dictionary
+    properties = {}
+
+    # trace properties, minimal set (as defined by SeisSpace / ProMAX)
+    if similar_to == "":
+        byte_offset = get_minimal_propset(properties, start_offset=0)
+    else:
+        byte_offset = 0
+
+    # trace properties, user defined
+    for key in _property_defs:
+        if key not in properties:
+            th = _property_defs[key]
+            th.byte_offset = byte_offset
+            properties[key] = th
+            byte_offset += th.size
+
+    # axis properties
+    if len(_axis_propdefs) == 0:
+        th_list = [stock_props['SAMPLE'], stock_props['TRACE'],
+            stock_props['FRAME'], stock_props['VOLUME'],
+            stock_props['HYPRCUBE']][:min(5,ndim)]
+        for idim in range(6, ndim+1):
+            label = "DIM{}".format(idim)
+            description = "dimension {}".format(idim)
+            th = TraceHeader(values=(label, description, "INTEGER", 1, 0))
+            th_list.append(th)
+        for th in th_list: # create dict from list
+            _axis_propdefs[th.label] = th
+
+    for key, th in _axis_propdefs.items():
+        assert th.element_count == 1
+        # map from JavaSeis axis name to ProMax property label
+        if th.label in dictJStoPM:
+            th.label = dictJStoPM[th.label]
+        if th.label not in properties:
+            th.byte_offset = byte_offset
+            properties[th.label] = th
+            byte_offset += th.size
+
+    return properties, _axis_propdefs
+
+
+def get_minimal_propset(properties, start_offset=0):
+    """
+    -i- properties : dict, get/set minimal trace properties and add to it
+    -i- start_offset : int, start byte offset
+    """
+    byte_offset = start_offset
+    for prop in minimal_props:
+        th = stock_props[prop]
+        th.byte_offset = byte_offset
+        properties[th.label] = th
+        byte_offset += th.size
+    return byte_offset
 
 
 if __name__ == '__main__':

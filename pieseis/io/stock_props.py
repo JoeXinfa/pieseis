@@ -72,7 +72,7 @@ stock_dtype = {
 }
 
 
-stock_prop = {
+stock_props = {
     "AMP_NORM" :  TraceHeader(values=("AMP_NORM", "Amplitude normalization factor",    "FLOAT",   1, 0)),
     "AOFFSET" :   TraceHeader(values=("AOFFSET",  "Absolute value of offset",          "FLOAT",   1, 0)),
     "CDP" :       TraceHeader(values=("CDP",      "CDP bin number",                    "INTEGER", 1, 0)),
@@ -170,3 +170,26 @@ stock_prop = {
     "WB_TIME" :   TraceHeader(values=("WB_TIME",  "Water bottom time",                 "FLOAT",   1, 0)),
     "XLINE_NO" :  TraceHeader(values=("XLINE_NO", "3D crossline number",               "INTEGER", 1, 0))
 }
+
+
+# from promax manual, this is the minimal (guaranteed) set of properties
+minimal_props = [
+    "SEQNO",
+    "END_ENS",
+    "EOJ",
+    "TRACENO",
+    "TRC_TYPE",
+    "TLIVE_S",
+    "TFULL_S",
+    "TFULL_E",
+    "TLIVE_E",
+    "LEN_SURG",
+    "TOT_STAT",
+    "NA_STAT",
+    "AMP_NORM",
+    "TR_FOLD",
+    "SKEWSTAT",
+    "LINE_NO",
+    "LSEG_END",
+    "LSEG_SEQ"
+]

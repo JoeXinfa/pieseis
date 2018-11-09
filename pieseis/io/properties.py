@@ -311,8 +311,8 @@ class TraceProperties(Properties):
             self._trace_headers[label] = TraceHeader(parset=attributes)
 
         total_bytes = 0
-        for key, value in self._trace_headers.items():
-            total_bytes += value.format_size
+        for key, th in self._trace_headers.items():
+            total_bytes += th.format_size
         self._total_bytes = total_bytes
 
     @property
@@ -530,42 +530,84 @@ class TraceHeader(object):
             self.init_from_tuple(values)
 
     def init_from_parset(self, parset):
-        self.label = parset['label']['parsetue']
-        self.description = parset['description']['parsetue']
-        self.format = parset['format']['parsetue']
-        self.element_count = parset['elementCount']['parsetue']
-        self.byte_offset = parset['byteOffset']['parsetue']
-        self.format_string_to_type()
+        self._label = parset['label']['value']
+        self._description = parset['description']['value']
+        self._format = parset['format']['value']
+        self._element_count = parset['elementCount']['value']
+        self._byte_offset = parset['byteOffset']['value']
+        self._format_string_to_type()
 
     def init_from_tuple(self, values):
-        self.label = values[0]
-        self.description = values[1]
-        self.format = values[2]
-        self.element_count = values[3]
-        self.byte_offset = values[4]
-        self.format_string_to_type()
+        self._label = values[0]
+        self._description = values[1]
+        self._format = values[2]
+        self._element_count = values[3]
+        self._byte_offset = values[4]
+        self._format_string_to_type()
 
-    def format_string_to_type(self):
-        if self.format == "INTEGER":
-            self.format_type = 'int32'
-            self.format_size = 4 # bytes
-        elif self.format == "LONG":
-            self.format_type = 'int64'
-            self.format_size = 8 # bytes
-        elif self.format == "FLOAT":
-            self.format_type = 'float32'
-            self.format_size = 4 # bytes
-        elif self.format == "DOUBLE":
-            self.format_type = 'float64'
-            self.format_size = 8 # bytes
-        elif self.format == "BYTESTRING":
-            self.format_type = 'uint8'
-            self.format_size = 1 # bytes
+    def _format_string_to_type(self):
+        if self._format == "INTEGER":
+            self._format_type = 'int32'
+            self._format_size = 4 # bytes
+        elif self._format == "LONG":
+            self._format_type = 'int64'
+            self._format_size = 8 # bytes
+        elif self._format == "FLOAT":
+            self._format_type = 'float32'
+            self._format_size = 4 # bytes
+        elif self._format == "DOUBLE":
+            self._format_type = 'float64'
+            self._format_size = 8 # bytes
+        elif self._format == "BYTESTRING":
+            self._format_type = 'uint8'
+            self._format_size = 1 # bytes
         else:
-            raise ValueError("unrecognized format".format(self.format))
+            raise ValueError("unrecognized format".format(self._format))
+
+        self._size = self._format_size * self._element_count
+
+    @property
+    def label(self):
+        return self._label
+
+    @label.setter
+    def label(self, label):
+        self._label = label
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def format(self):
+        return self._format
+
+    @property
+    def format_type(self):
+        return self._format_type
+
+    @property
+    def format_size(self):
+        return self._format_size
+
+    @property
+    def element_count(self):
+        return self._element_count
+
+    @property
+    def byte_offset(self):
+        return self._byte_offset
+
+    @byte_offset.setter
+    def byte_offset(self, offset):
+        self._byte_offset = offset
+
+    @property
+    def size(self):
+        return self._size
 
     def __eq__(self, other):
-        if self.label == other.label:
+        if self._label == other._label:
             return True
         return False
 
