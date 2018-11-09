@@ -179,6 +179,14 @@ class VirtualFolders(Properties):
 
     def __init__(self, root):
         super(VirtualFolders, self).__init__(root, "VirtualFolders")
+        self._secondaries = []
+        n = self.nr_directories
+        for i in range(n):
+            name = "FILESYSTEM-{}".format(i)
+            value = self._attributes[name]
+            value = value.get('value')
+            path = value.split(',')[0]
+            self._secondaries.append(path)
 
     @property
     def nr_directories(self):
@@ -187,15 +195,7 @@ class VirtualFolders(Properties):
 
     @property
     def secondary_folders(self):
-        secondaries = []
-        n = self.nr_directories
-        for i in range(n):
-            name = "FILESYSTEM-{}".format(i)
-            value = self._attributes[name]
-            value = value.get('value')
-            path = value.split(',')[0]
-            secondaries.append(path)
-        return secondaries
+        return self._secondaries
 
 
 class FileProperties(Properties):

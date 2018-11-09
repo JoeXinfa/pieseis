@@ -1,7 +1,10 @@
 import os
 import os.path as osp
-from lxml import etree
 import struct
+import warnings
+
+from lxml import etree
+import numpy as np
 
 from .properties import (FileProperties, TraceProperties, CustomProperties,
     VirtualFolders, TraceFileXML, TraceHeadersXML, TraceHeader)
@@ -128,17 +131,30 @@ class JavaSeisDataset(object):
             jsd.data_properties = jsd._custom_properties.data_properties
             jsd.geom            = None
 
+            jsd.has_traces = False
+            filename = osp.join(jsd.path, JS_HAS_TRACES_FILE)
+            if osp.isfile(filename):
+                jsd.has_traces = get_status(filename)
+
             jsd._read_virtual_folders()
+            jsd.secondaries = jsd._virtual_folders.secondary_folders
+
             jsd._read_trace_file_xml()
+            jsd._set_trc_extents()
+            jsd.trc_extents = jsd._trc_extents
+
             jsd._read_trace_headers_xml()
+            jsd._set_hdr_extents()
+            jsd.hdr_extents = jsd._hdr_extents
+
+            jsd.current_volume = -1
+            jsd.map = np.zeros(jsd.axis_lengths[2], dtype='int32')
 
             #jsd._set_trace_format()
             #jsd._set_trace_compressor()
-            jsd._set_trace_length()
-            jsd._set_trc_extents()
-            jsd._set_hdr_extents()
+            #jsd._set_trace_length()
 
-        return jsd
+            return jsd
 
     def _validate_js_dir(self, path):
         """Gets called during the construction of this object instance"""
@@ -568,6 +584,20 @@ def get_description(filename):
                 if columns[0] == "DescriptiveName":
                     return columns[1]
     return ""
+
+
+def get_status(filename):
+    with open(filename, 'r') as f:
+        for line in f:
+            if line[0] != '#':
+                line = line.strip()
+                columns = line.split('=')
+                if len(columns) < 2:
+                    warnings.warn("Status info (has traces) may be incorrect")
+                    return False
+                if columns[0] == "HasTraces" and columns[1] == 'true':
+                    return True
+    return False
 
 
 if __name__ == '__main__':
