@@ -9,6 +9,9 @@ sys.path.append('..')
 
 import pieseis.io.jsfile as jsfile
 
-filename = 'C:/Users/xinfa/Documents/181109_test.js'
+filename = 'C:/Users/xinfa/Documents/temp.js'
+jsd = jsfile.JavaSeisDataset.open(filename)
+jsfile.write_file_properties(jsd)
 
-jsfile.JavaSeisDataset.open(filename, mode='w', axis_lengths=[128, 32, 16])
+#filename = 'C:/Users/xinfa/Documents/181109_test.js'
+#jsfile.JavaSeisDataset.open(filename, mode='w', axis_lengths=[128, 32, 16])

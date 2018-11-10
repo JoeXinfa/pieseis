@@ -12,7 +12,7 @@ from .properties import (FileProperties, TraceProperties, CustomProperties,
     VirtualFolders, TraceFileXML, TraceHeadersXML, TraceHeader)
 from .defs import GridDefinition
 from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
-from .compat import dictJStoPM
+from .compat import dictJStoPM, dictPMtoJS
 from .stock_props import (minimal_props, stock_props, stock_dtype,
                           stock_unit, stock_domain)
 
@@ -41,8 +41,22 @@ JS_VERSION = "2006.3"
 FORMAT_BYTE = {
     "float32" : 4,
     "float64" : 8,
-    "int32" : 4,
-    "int16" : 2
+    "int32"   : 4,
+    "int16"   : 2
+}
+
+TRACE_FORMAT_TO_DATA_FORMAT = {
+    "FLOAT"            : "float32",
+    "DOUBLE"           : "float64",
+    "COMPRESSED_INT32" : "int32",
+    "COMPRESSED_INT16" : "int16"
+}
+
+DATA_FORMAT_TO_TRACE_FORMAT = {
+    "float32" : "FLOAT",
+    "float64" : "DOUBLE",
+    "int32"   : "COMPRESSED_INT32",
+    "int16"   : "COMPRESSED_INT16"
 }
 
 
@@ -108,12 +122,11 @@ class JavaSeisDataset(object):
         if mode == 'r' or mode == 'r+':
             jsd.is_valid = jsd._validate_js_dir(jsd.path)
             jsd._read_properties()
-            jsd._set_trace_format()
             trace_properties = jsd._trace_properties._trace_headers
             axis_labels = jsd._file_properties.axis_labels
             _axis_propdefs = get_axis_propdefs(trace_properties, axis_labels)
             _axis_lengths = jsd._file_properties.axis_lengths
-            _data_format = jsd._trace_format
+            _data_format = TRACE_FORMAT_TO_DATA_FORMAT[jsd._file_properties.trace_format]
         elif mode == 'w' and similar_to == "":
             _axis_lengths = axis_lengths
             _data_format = "float32" if data_format is None else data_format
@@ -128,7 +141,8 @@ class JavaSeisDataset(object):
                 similar_to)
 
         #self._is_open = True
-        #TODO jsd._validate_js_dir after write complete
+        # TODO jsd._validate_js_dir after write complete
+        # TODO load geometry from file properties xml
 
         compressor = get_trace_compressor(_axis_lengths[0], _data_format)
         jsd.properties = trace_properties
@@ -295,7 +309,7 @@ class JavaSeisDataset(object):
         make_primary_dir(jsd)
         make_extent_dirs(jsd)
         create_map(jsd)
-#        write_file_properties(jsd)
+        write_file_properties(jsd)
 #        write_name_properties(jsd)
 #        write_status_properties(jsd)
 #        write_extent_manager(jsd)
@@ -413,19 +427,6 @@ class JavaSeisDataset(object):
     def __str__(self):
         return "<JavaSeisDataset {}>" \
             .format(self.path)
-
-    def _set_trace_format(self):
-        trcfmt = self.file_properties.trace_format
-        if trcfmt == "FLOAT":
-            self._trace_format = "float32"
-        elif trcfmt == "DOUBLE":
-            self._trace_format = "float64"
-        elif trcfmt == "COMPRESSED_INT32":
-            self._trace_format = "int32"
-        elif trcfmt == "COMPRESSED_INT16":
-            self._trace_format = "int16"
-        else:
-            raise ValueError("Unrecognized trace format".format(trcfmt))
 
     def _set_trc_extents(self):
         xml = self._trace_file_xml
@@ -575,7 +576,7 @@ class JSFileReader(object):
         extents = self._js_dataset._trc_extents
         extent = get_extent_index(extents, offset)
         offset -= extent['start']
-        trcfmt = self._js_dataset._trace_format
+        trcfmt = self._js_dataset.data_format
         if trcfmt == "int16":
             f = open(extent['path'], "rb")
             cps = self._js_dataset._trace_compressor
@@ -887,27 +888,128 @@ def create_map(jsd):
         array.tofile(f) # TODO need test by read
 
 
+def write_file_properties(jsd):
+    root = etree.Element("parset", name="JavaSeis Metadata")
+    fps = etree.SubElement(root, "parset", name=JS_FILE_PROPERTIES)
+
+    # translate ProMax property labels to JavaSeis axis labels
+    axis_labels = []
+    for key in jsd.axis_propdefs:
+        label = dictPMtoJS[key] if key in dictPMtoJS else key
+        axis_labels.append(label)
+
+    add_child_par(fps, "Comments",          "string", " \"JavaSeis.py - JavaSeis File Propertties 2006.3\" ")
+    add_child_par(fps, "JavaSeisVersion",   "string", " 2006.3 ")
+    add_child_par(fps, "DataType",          "string",  " {} ".format(jsd.data_type))
+    add_child_par(fps, "TraceFormat",       "string",  " {} ".format(DATA_FORMAT_TO_TRACE_FORMAT[jsd.data_format]))
+    add_child_par(fps, "ByteOrder",         "string",  " {} ".format(jsd.data_order))
+    add_child_par(fps, "Mapped",            "boolean", " {} ".format(str(jsd.mapped).lower()))
+    add_child_par(fps, "DataDimensions",    "int",     " {} ".format(len(jsd.axis_lengths)))
+    add_child_par(fps, "AxisLabels",        "string",  format_axes(axis_labels))
+    add_child_par(fps, "AxisUnits",         "string",  format_axes(jsd.axis_units))
+    add_child_par(fps, "AxisDomains",       "string",  format_axes(jsd.axis_domains))
+    add_child_par(fps, "AxisLengths",       "long",    format_axes(jsd.axis_lengths))
+    add_child_par(fps, "LogicalOrigins",    "long",    format_axes(jsd.axis_lstarts))
+    add_child_par(fps, "LogicalDeltas",     "long",    format_axes(jsd.axis_lincs))
+    add_child_par(fps, "PhysicalOrigins",   "double",  format_axes(jsd.axis_pstarts))
+    add_child_par(fps, "PhysicalDeltas",    "double",  format_axes(jsd.axis_pincs))
+    add_child_par(fps, "HeaderLengthBytes", "int",     " {} ".format(jsd.header_length))
+
+    # trace properties
+    tps = etree.SubElement(root, "parset", name="TraceProperties")
+    i = 0
+    for key, th in jsd.properties.items():
+        add_child_trace_property(tps, i, th)
+        i += 1
+
+    # custom properties
+    cps = etree.SubElement(root, "parset", name="CustomProperties")
+    for prop in jsd.data_properties:
+        print('testing...', prop.label, prop.format, prop.value)
+        add_child_par(cps, prop.label, prop.format, " {} ".format(prop.value))
+        # TODO need test if SeisSpace can load the Stacked = "True"
+
+    # 3-point geometry
+    if jsd.geom is not None:
+        geometry = etree.SubElement(cps, "parset", name="Geometry")
+        add_child_par(geometry, "u1", "long",   " {} ".format(jsd.geom.u1))
+        add_child_par(geometry, "un", "long",   " {} ".format(jsd.geom.un))
+        add_child_par(geometry, "v1", "long",   " {} ".format(jsd.geom.v1))
+        add_child_par(geometry, "vn", "long",   " {} ".format(jsd.geom.vn))
+        add_child_par(geometry, "w1", "long",   " {} ".format(jsd.geom.w1))
+        add_child_par(geometry, "wn", "long",   " {} ".format(jsd.geom.wn))
+        add_child_par(geometry, "ox", "double", " {} ".format(jsd.geom.ox))
+        add_child_par(geometry, "oy", "double", " {} ".format(jsd.geom.oy))
+        add_child_par(geometry, "oz", "double", " {} ".format(jsd.geom.oz))
+        add_child_par(geometry, "ux", "double", " {} ".format(jsd.geom.ux))
+        add_child_par(geometry, "uy", "double", " {} ".format(jsd.geom.uy))
+        add_child_par(geometry, "uz", "double", " {} ".format(jsd.geom.uz))
+        add_child_par(geometry, "vx", "double", " {} ".format(jsd.geom.vx))
+        add_child_par(geometry, "vy", "double", " {} ".format(jsd.geom.vy))
+        add_child_par(geometry, "vz", "double", " {} ".format(jsd.geom.vz))
+        add_child_par(geometry, "wx", "double", " {} ".format(jsd.geom.wx))
+        add_child_par(geometry, "wy", "double", " {} ".format(jsd.geom.wy))
+        add_child_par(geometry, "wz", "double", " {} ".format(jsd.geom.wz))
+
+    fn = osp.join(jsd.filename, JS_FILE_PROPERTIES_XML)
+    write_etree_to_file(fn, root)
+
+
+def add_child_trace_property(parent, index, trace_header):
+    """
+    -i- parent : lxml.etree.Element or SubElement
+    -i- index : int
+    -i- trace_header : object, TraceHeader
+    """
+    header = etree.SubElement(parent, "parset", name="entry_{}".format(index))
+    add_child_par(header, "label",        "string", " {} ".format(trace_header.label))
+    add_child_par(header, "description",  "string", " \"{}\" ".format(trace_header.description))
+    add_child_par(header, "format",       "string", " {} ".format(trace_header.format))
+    add_child_par(header, "elementCount", "int", " {} ".format(trace_header.element_count))
+    add_child_par(header, "byteOffset",   "int", " {} ".format(trace_header.byte_offset))
+
+
+def format_axes(axes):
+    """
+    -i- axes : list, e.g. ["SAMPLE", "TRACE", "FRAME"], [64,32, 16]
+    """
+    prefix = "\n" + " " * 6
+    append = "\n" + " " * 4
+    labels = ""
+    for axis in axes:
+        labels += prefix + str(axis)
+    labels += append
+    return labels
+
+
 def write_virtual_folders(jsd):
     root = etree.Element("parset", name=JS_VIRTUAL_FOLDERS)
     add_child_par(root, "NDIR", "int", " {} ".format(len(jsd.secondaries)))
     for i in range(len(jsd.secondaries)):
         value = " {},READ_WRITE ".format(jsd.secondaries[i])
         add_child_par(root, "FILESYSTEM-{}".format(i), "string", value)
-    add_child_par(root, "Version", "string", " 2006.2 ")
-    add_child_par(root, "Header", "string", " \"VFIO org.javaseis.VirtualFolder 2006.2\" ")
-    add_child_par(root, "Type", "string", " SS ")
+    add_child_par(root, "Version",   "string", " 2006.2 ")
+    add_child_par(root, "Header",    "string", " \"VFIO org.javaseis.VirtualFolder 2006.2\" ")
+    add_child_par(root, "Type",      "string", " SS ")
     add_child_par(root, "POLICY_ID", "string", " RANDOM ")
     nb = jsd.axis_lengths[0] * FORMAT_BYTE[jsd.data_format] + jsd.header_length
     nb *=  np.prod(jsd.axis_lengths[1:])
     add_child_par(root, "GLOBAL_REQUIRED_FREE_SPACE", "long", " {} ".format(nb))
     fn = osp.join(jsd.filename, JS_VIRTUAL_FOLDERS_XML)
+    write_etree_to_file(fn, root)
+
+
+def write_etree_to_file(fn, root):
+    """
+    -i- root : lxml.etree.Element
+    """
     et = etree.ElementTree(root)
     et.write(fn, pretty_print=True)
 
 
 def add_child_par(parent, name, fmt, value):
     """
-    -i- parent : lxml.etree.Element
+    -i- parent : lxml.etree.Element or SubElement
     -i- name : string
     -i- fmt : string
     -i- value : string
