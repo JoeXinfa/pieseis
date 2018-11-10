@@ -3,6 +3,7 @@ import os.path as osp
 import struct
 import warnings
 import math
+import shutil
 
 from lxml import etree
 import numpy as np
@@ -15,18 +16,22 @@ from .compat import dictJStoPM
 from .stock_props import (minimal_props, stock_props, stock_dtype,
                           stock_unit, stock_domain)
 
-# constant filenames
-JS_FILE_PROPERTIES_XML = "FileProperties.xml"
-JS_FILE_PROPERTIES_OBS = "FileProperties"
-JS_FILE_STUB = "Name.properties"
-JS_TRACE_DATA_XML = "TraceFile.xml"
+DOT_XML = ".xml"
+JS_FILE_PROPERTIES = "FileProperties"
 JS_TRACE_DATA = "TraceFile"
 JS_TRACE_HEADERS = "TraceHeaders"
-JS_HISTORY_XML = "History.xml"
+JS_VIRTUAL_FOLDERS = "VirtualFolders"
+JS_HISTORY = "History"
+
+# constant filenames
 JS_TRACE_MAP = "TraceMap"
-JS_HAS_TRACES_FILE = "Status.properties"
-JS_VIRTUAL_FOLDERS_XML = "VirtualFolders.xml"
-JS_TRACE_HEADERS_XML = "TraceHeaders.xml"
+JS_NAME_FILE = "Name.properties"
+JS_STATUS_FILE = "Status.properties"
+JS_FILE_PROPERTIES_XML = JS_FILE_PROPERTIES + DOT_XML
+JS_TRACE_DATA_XML = JS_TRACE_DATA + DOT_XML
+JS_TRACE_HEADERS_XML = JS_TRACE_HEADERS + DOT_XML
+JS_VIRTUAL_FOLDERS_XML = JS_VIRTUAL_FOLDERS + DOT_XML
+JS_HISTORY_XML = JS_HISTORY + DOT_XML
 
 # other constants
 JS_EARLYVERSION1 = "2006.01"
@@ -52,6 +57,7 @@ def check_io(filename, mode):
     elif mode == 'w':
         if osp.exists(filename):
             raise IOError("Path for JavaSeis dataset already exists")
+            # TODO give option to overwrite (delete old and write new)
         parent_directory = osp.dirname(filename)
         if not os.access(parent_directory, os.W_OK):
             raise IOError("Missing write access in {}".format(parent_directory))
@@ -135,12 +141,12 @@ class JavaSeisDataset(object):
         jsd.trace_length = get_trace_length(jsd.compressor)
 
         if mode == 'r' or mode == 'r+':
-            filename = osp.join(jsd.path, JS_FILE_STUB)
+            filename = osp.join(jsd.path, JS_NAME_FILE)
             jsd.description = get_description(filename)
 
             jsd.mapped          = jsd._file_properties.is_mapped()
             jsd.data_type       = jsd._file_properties.data_type
-            jsd.data_format     = jsd._trace_format
+            jsd.data_format     = _data_format
             jsd.data_order      = jsd._file_properties.byte_order
             jsd.axis_lengths    = jsd._file_properties.axis_lengths
             jsd.axis_units      = jsd._file_properties.axis_units
@@ -153,7 +159,7 @@ class JavaSeisDataset(object):
             jsd.geom            = None
 
             jsd.has_traces = False
-            filename = osp.join(jsd.path, JS_HAS_TRACES_FILE)
+            filename = osp.join(jsd.path, JS_STATUS_FILE)
             if osp.isfile(filename):
                 jsd.has_traces = get_status(filename)
 
@@ -286,14 +292,14 @@ class JavaSeisDataset(object):
         jsd.map = np.zeros(jsd.axis_lengths[2], dtype='int32')
 
         # create the various xml files and directories
-#        make_primary_dir(jsd)
-#        make_extent_dirs(jsd)
-#        create_map(jsd)
+        make_primary_dir(jsd)
+        make_extent_dirs(jsd)
+        create_map(jsd)
 #        write_file_properties(jsd)
 #        write_name_properties(jsd)
 #        write_status_properties(jsd)
 #        write_extent_manager(jsd)
-#        write_virtual_folders(jsd)
+        write_virtual_folders(jsd)
 
     @staticmethod
     def _validate_js_dir(path):
@@ -314,11 +320,11 @@ class JavaSeisDataset(object):
         if JS_TRACE_HEADERS_XML not in files:
             js_missing(JS_TRACE_HEADERS_XML)
 
-        if JS_FILE_STUB not in files:
-            js_missing(JS_FILE_STUB)
+        if JS_NAME_FILE not in files:
+            js_missing(JS_NAME_FILE)
 
-        if JS_HAS_TRACES_FILE not in files:
-            js_missing(JS_HAS_TRACES_FILE)
+        if JS_STATUS_FILE not in files:
+            js_missing(JS_STATUS_FILE)
 
         return True
 
@@ -852,8 +858,64 @@ def get_nextents(dims, fmt):
     return math.ceil(np.clip(n, 1, 256))
 
 
+def make_directory(abspath, force=False):
+    if osp.isdir(abspath):
+        if force: # delete old and create new
+            shutil.rmtree(abspath)
+            os.mkdir(abspath)
+        else:
+            warnings.warn("Directory already exists: {}".format(abspath))
+    else:
+        os.mkdir(abspath)
+
+
 def make_primary_dir(jsd):
-    pass
+    make_directory(jsd.filename)
+
+
+def make_extent_dirs(jsd):
+    for path in jsd.secondaries:
+        extpath = extent_dir(path, jsd.filename)
+        make_directory(extpath)
+
+
+def create_map(jsd):
+    fn = osp.join(jsd.filename, JS_TRACE_MAP)
+    nframes = np.prod(jsd.axis_lengths[2:])
+    array = np.zeros(nframes, dtype='int32')
+    with open(fn, 'wb') as f:
+        array.tofile(f) # TODO need test by read
+
+
+def write_virtual_folders(jsd):
+    root = etree.Element("parset", name=JS_VIRTUAL_FOLDERS)
+    add_child_par(root, "NDIR", "int", " {} ".format(len(jsd.secondaries)))
+    for i in range(len(jsd.secondaries)):
+        value = " {},READ_WRITE ".format(jsd.secondaries[i])
+        add_child_par(root, "FILESYSTEM-{}".format(i), "string", value)
+    add_child_par(root, "Version", "string", " 2006.2 ")
+    add_child_par(root, "Header", "string", " \"VFIO org.javaseis.VirtualFolder 2006.2\" ")
+    add_child_par(root, "Type", "string", " SS ")
+    add_child_par(root, "POLICY_ID", "string", " RANDOM ")
+    nb = jsd.axis_lengths[0] * FORMAT_BYTE[jsd.data_format] + jsd.header_length
+    nb *=  np.prod(jsd.axis_lengths[1:])
+    add_child_par(root, "GLOBAL_REQUIRED_FREE_SPACE", "long", " {} ".format(nb))
+    fn = osp.join(jsd.filename, JS_VIRTUAL_FOLDERS_XML)
+    et = etree.ElementTree(root)
+    et.write(fn, pretty_print=True)
+
+
+def add_child_par(parent, name, fmt, value):
+    """
+    -i- parent : lxml.etree.Element
+    -i- name : string
+    -i- fmt : string
+    -i- value : string
+    """
+    child = etree.SubElement(parent, "par", name=name, type=fmt)
+    #child.set("name", name)
+    #child.set("type", fmt)
+    child.text = value
 
 
 if __name__ == '__main__':
