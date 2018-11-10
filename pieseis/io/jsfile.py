@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import struct
 import warnings
+import math
 
 from lxml import etree
 import numpy as np
@@ -11,7 +12,8 @@ from .properties import (FileProperties, TraceProperties, CustomProperties,
 from .defs import GridDefinition
 from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
 from .compat import dictJStoPM
-from .stock_props import minimal_props, stock_props
+from .stock_props import (minimal_props, stock_props, stock_dtype,
+                          stock_unit, stock_domain)
 
 # constant filenames
 JS_FILE_PROPERTIES_XML = "FileProperties.xml"
@@ -31,28 +33,30 @@ JS_EARLYVERSION1 = "2006.01"
 JS_PREXMLVERSION = "2006.2"
 JS_VERSION = "2006.3"
 
+FORMAT_BYTE = {
+    "float32" : 4,
+    "float64" : 8,
+    "int32" : 4,
+    "int16" : 2
+}
 
-def create_javaseis(path):
-    """
-    Utility method to write / construct a javaseis dataset.
-    Will either throw a IOError exception or a
-    JavaSeisDataset instance.
-    """
-    if osp.exists(path):
-        raise IOError("Path for JavaSeis dataset already exists..")
 
-    if not path.endswith(".js"):
-        path += ".js"
-
-    # Construct a new "JavaSeis" file here.
-    try:
-        os.makedirs(path)
-    except IOError as e:
-        raise e
-
-    # TODO: Construct all the meta files
-    raise NotImplementedError("Not yet fully implemented " +
-                              "feature to create new JS datasets.")
+def check_io(filename, mode):
+    if not filename.endswith(".js"):
+        warnings.warn("JavaSeis filename does not end with '.js'")
+    if mode == 'r' or mode == 'r+':
+        if not osp.isdir(filename):
+            raise IOError("JavaSeis filename is not directory")
+        if not os.access(filename, os.R_OK):
+            raise IOError("Missing read access")
+    elif mode == 'w':
+        if osp.exists(filename):
+            raise IOError("Path for JavaSeis dataset already exists")
+        parent_directory = osp.dirname(filename)
+        if not os.access(parent_directory, os.W_OK):
+            raise IOError("Missing write access in {}".format(parent_directory))
+    else:
+        raise ValueError("unrecognized mode: {}".format(mode))
 
 
 class JavaSeisDataset(object):
@@ -61,32 +65,16 @@ class JavaSeisDataset(object):
     Reader and Writer classes.
     """
     def __init__(self, filename):
-#        if not osp.isdir(filename):
-#            self.is_valid = True
-#            raise IOError("Must be a folder: %s" % filename)
-#
-#        try:
-#            self._validate_js_dir(filename)
-#            self._is_valid = True
-#        except IOError as ioe:
-#            print("%s is not a valid dataset" % filename)
-#            print("msg: %s" % ioe)
-#            self._is_valid = False
-
-        #self._files = os.listdir(filename)
         self.path = filename
-
-        # self.read_data()
-        #self._is_open = True
 
     @classmethod
     def open(cls, filename,
-        mode                = 'r',
+        mode                = "r",
         description         = "",
-        mapped              = True,
+        mapped              = None,
         data_type           = None,
-        data_format         = "float32",
-        data_order          = "",
+        data_format         = None,
+        data_order          = None,
         axis_lengths        = [],
         axis_propdefs       = {},
         axis_units          = [],
@@ -108,55 +96,43 @@ class JavaSeisDataset(object):
         """
         -i- filename : string, path of the JavaSeis dataset e.g. "data.js"
         -i- mode : string, "r" read, "w" write/create, "r+" read and write
-        Utility method to open a JavaSeis dataset. Will throw an
-        IOError exception in case of any errors, or a
-        JavaSeisDataset instance.
         """
+        check_io(filename, mode)
         jsd = JavaSeisDataset(filename)
         if mode == 'r' or mode == 'r+':
-            if not osp.isdir(filename):
-                # TODO: call create_javaseis(filename) here
-                raise IOError("JavaSeis dataset does not exists")
-            if not os.access(filename, os.R_OK):
-                raise IOError("Missing read access for JavaSeis dataset")
-
+            jsd.is_valid = jsd._validate_js_dir(jsd.path)
             jsd._read_properties()
             jsd._set_trace_format()
-
             trace_properties = jsd._trace_properties._trace_headers
             axis_labels = jsd._file_properties.axis_labels
             _axis_propdefs = get_axis_propdefs(trace_properties, axis_labels)
             _axis_lengths = jsd._file_properties.axis_lengths
             _data_format = jsd._trace_format
-
         elif mode == 'w' and similar_to == "":
-            ndim = len(axis_lengths)
-            if ndim < 2:
-                raise ValueError("axis dimension must >= 2")
+            _axis_lengths = axis_lengths
+            _data_format = "float32" if data_format is None else data_format
+        elif mode == 'w' and similar_to != "":
+            jsdsim = JavaSeisDataset.open(similar_to)
+            _axis_lengths = jsdsim.axis_lengths if len(axis_lengths) == 0 else axis_lengths
+            _data_format = jsdsim.data_format if data_format is None else data_format
+        if mode == 'w':
+            ndim = len(_axis_lengths)
             trace_properties, _axis_propdefs = get_trace_properties(ndim,
                 properties, properties_add, properties_rm, axis_propdefs,
                 similar_to)
-            _axis_lengths = axis_lengths
-            _data_format = data_format
 
-        #print('trace_properties =', trace_properties)
-        #print('_axis_propdefs =', _axis_propdefs)
-        for key, th in trace_properties.items():
-            print(key, th.label, th.format, th.element_count, th.byte_offset)
-        for key, th in _axis_propdefs.items():
-            print(key, th.label, th.format, th.element_count, th.byte_offset)
-        print('_axis_lengths =', _axis_lengths)
-        print('_data_format =', _data_format)
-        exit()
+        #self._is_open = True
+        #TODO jsd._validate_js_dir after write complete
 
-        jsd._set_trace_compressor()
+        compressor = get_trace_compressor(_axis_lengths[0], _data_format)
         jsd.properties = trace_properties
         jsd.axis_propdefs = _axis_propdefs
-        jsd.compressor = jsd._trace_compressor
+        jsd.compressor = compressor
         jsd.filename = filename
         jsd.mode = mode
         jsd.current_volume = -1
-        jsd.header_length = jsd._trace_properties._total_bytes
+        jsd.header_length = get_header_length(jsd.properties)
+        jsd.trace_length = get_trace_length(jsd.compressor)
 
         if mode == 'r' or mode == 'r+':
             filename = osp.join(jsd.path, JS_FILE_STUB)
@@ -195,16 +171,135 @@ class JavaSeisDataset(object):
             jsd.current_volume = -1
             jsd.map = np.zeros(jsd.axis_lengths[2], dtype='int32')
 
-            #jsd._set_trace_format()
-            #jsd._set_trace_compressor()
-            #jsd._set_trace_length()
-
             return jsd
 
-    def _validate_js_dir(self, path):
+        if mode == 'w' and osp.isdir(filename):
+            pass # TODO remote dataset for overwrite?
+
+        if mode == 'w' and similar_to == "":
+            jsd.mapped          = True if mapped is None else mapped
+            jsd.data_type       = stock_dtype['CUSTOM'] if data_type is None else data_type
+            jsd.data_format     = _data_format
+            jsd.data_order      = "LITTLE_ENDIAN" if data_order is None else data_order
+            jsd.axis_lengths    = axis_lengths
+            jsd.axis_units      = axis_units
+            jsd.axis_domains    = axis_domains
+            jsd.axis_lstarts    = axis_lstarts
+            jsd.axis_lincs      = axis_lincs
+            jsd.axis_pstarts    = axis_pstarts
+            jsd.axis_pincs      = axis_pincs
+            jsd.data_properties = data_properties
+            jsd.geom            = geometry
+            jsd.secondaries     = ["."] if secondaries is None else secondaries
+
+        elif mode == 'w' and similar_to != "":
+            #jsdsim = JavaSeisDataset.open(similar_to)
+
+            # special handling for data properties
+            if len(data_properties) == 0:
+                data_properties = jsdsim.data_properties
+            else:
+                assert len(data_properties_add) == 0
+                assert len(data_properties_rm) == 0
+            # TODO need test here
+            if len(data_properties_add) != 0:
+                assert len(data_properties) == 0
+                for prop in data_properties_add:
+                    if prop not in data_properties:
+                        data_properties.append(prop)
+
+            jsd.mapped          = jsdsim.mapped if mapped is None else mapped
+            jsd.data_type       = jsdsim.data_type if data_type is None else data_type
+            jsd.data_format     = _data_format
+            jsd.data_order      = jsdsim.data_order if data_order is None else data_order
+            jsd.axis_lengths    = axis_lengths
+            jsd.axis_units      = jsdsim.axis_units if len(axis_units) == 0 else axis_units
+            jsd.axis_domains    = jsdsim.axis_domains if len(axis_domains) == 0 else axis_domains
+            jsd.axis_lstarts    = jsdsim.axis_lstarts if len(axis_lstarts) == 0 else axis_lstarts
+            jsd.axis_lincs      = jsdsim.axis_lincs if len(axis_lincs) == 0 else axis_lincs
+            jsd.axis_pstarts    = jsdsim.axis_pstarts if len(axis_pstarts) == 0 else axis_pstarts
+            jsd.axis_pincs      = jsdsim.axis_pincs if len(axis_pincs) == 0 else axis_pincs
+            jsd.data_properties = data_properties
+            jsd.geom            = jsdsim.geom if geometry is None else geometry
+            jsd.secondaries     = jsdsim.secondaries if secondaries is None else secondaries
+            nextents            = jsdsim.trc_extents if nextents == 0 else nextents
+
+        if mode == 'w':
+            ndim = len(jsd.axis_lengths)
+            assert ndim >= 3
+            assert len(jsd.axis_propdefs) == ndim or len(jsd.axis_propdefs) == 0
+            assert len(jsd.axis_units)    == ndim or len(jsd.axis_units)    == 0
+            assert len(jsd.axis_domains)  == ndim or len(jsd.axis_domains)  == 0
+            assert len(jsd.axis_lstarts)  == ndim or len(jsd.axis_lstarts)  == 0
+            assert len(jsd.axis_lincs)    == ndim or len(jsd.axis_lincs)    == 0
+            assert len(jsd.axis_pstarts)  == ndim or len(jsd.axis_pstarts)  == 0
+            assert len(jsd.axis_pincs)    == ndim or len(jsd.axis_pincs)    == 0
+
+            hassim = False if similar_to == "" else True
+            JavaSeisDataset.write(jsd, nextents, ndim, description, properties, hassim)
+            return jsd
+
+    @staticmethod
+    def write(jsd, nextents, ndim, description, properties, hassim):
+        # initialize axes if not set yet
+        if len(jsd.axis_units) == 0:
+            jsd.axis_units = [stock_unit["UNKNOWN"]] * ndim
+        if len(jsd.axis_domains) == 0:
+            jsd.axis_domains = [stock_domain["UNKNOWN"]] * ndim
+        if len(jsd.axis_lstarts) == 0:
+            jsd.axis_lstarts = np.ones(ndim, dtype='int64')
+        if len(jsd.axis_lincs) == 0:
+            jsd.axis_lincs = np.ones(ndim, dtype='int64')
+        if len(jsd.axis_pstarts) == 0:
+            jsd.axis_pstarts = np.zeros(ndim, dtype='float64')
+        if len(jsd.axis_pincs) == 0:
+            jsd.axis_pincs = np.ones(ndim, dtype='float64')
+
+        # description, if not set by user, we grab it from the filename
+        if len(description) == 0:
+            fn = jsd.filename[:-3] if jsd.filename.endswith(".js") else jsd.filename
+            fn = fn.split('/')[-1] # TODO how about windows \
+            jsd.description = fn.split('@')[-1]
+        else:
+            jsd.description = description
+
+        # data is initialized to empty
+        jsd.has_traces = False
+
+        # secondaries, if not set by user, we use primary storage ["."]
+        if jsd.secondaries is None:
+            jsd.secondaries = ["."]
+        if len(jsd.secondaries) < 1:
+            raise ValueError("secondaries list length < 1")
+
+        # choose default number of exents (heuristic)
+        nextents = get_nextents(jsd.axis_lengths, jsd.data_format) if nextents == 0 else nextents
+        nextents = min(nextents, np.prod(jsd.axis_lengths[2:]))
+
+        # trace and header extents
+        jsd.trc_extents = make_extents(nextents, jsd.secondaries,
+            jsd.filename, jsd.axis_lengths, jsd.trace_length, "TraceFile")
+        jsd.hdr_extents = make_extents(nextents, jsd.secondaries,
+            jsd.filename, jsd.axis_lengths, jsd.header_length, "TraceHeaders")
+
+        # trace map
+        jsd.map = np.zeros(jsd.axis_lengths[2], dtype='int32')
+
+        # create the various xml files and directories
+#        make_primary_dir(jsd)
+#        make_extent_dirs(jsd)
+#        create_map(jsd)
+#        write_file_properties(jsd)
+#        write_name_properties(jsd)
+#        write_status_properties(jsd)
+#        write_extent_manager(jsd)
+#        write_virtual_folders(jsd)
+
+    @staticmethod
+    def _validate_js_dir(path):
         """Gets called during the construction of this object instance"""
         def js_missing(f):
-            raise IOError("Missing: "+f)
+            raise IOError("Missing: {}".format(f))
         files = os.listdir(path)
 
         if JS_FILE_PROPERTIES_XML not in files:
@@ -326,15 +421,6 @@ class JavaSeisDataset(object):
         else:
             raise ValueError("Unrecognized trace format".format(trcfmt))
 
-    def _set_trace_compressor(self):
-        nsamples = self.file_properties.axis_lengths[0]
-        trace_format = self._trace_format
-        self._trace_compressor = get_trace_compressor(nsamples, trace_format)
-
-    def _set_trace_length(self):
-        compressor = self._trace_compressor
-        self._trace_length = get_trace_length(compressor)
-
     def _set_trc_extents(self):
         xml = self._trace_file_xml
         secondaries = self._virtual_folders.secondary_folders
@@ -350,10 +436,6 @@ class JavaSeisDataset(object):
     def _get_fold(self, iframe):
         # TODO read TraceMap
         return self._file_properties.axis_lengths[1]
-
-    @property
-    def trace_length(self):
-        return self._trace_length
 
 
 class JSFileReader(object):
@@ -569,7 +651,7 @@ def get_extents(xml, secondaries, filename):
                 if i < nextents:
                     start = i * size
                     path = osp.join(base_extpath, name)
-                    extents[i] = make_extent(name, path, i, start, size)
+                    extents[i] = extent_dict(name, path, i, start, size)
 
     # TODO add missing extents (i.e. extents with all empty frames)
 
@@ -580,9 +662,28 @@ def get_extents(xml, secondaries, filename):
     return extents
 
 
-def make_extent(name, path, index, start, size):
+def extent_dict(name, path, index, start, size):
     return {'name': name, 'path': path, 'index': index, 'start': start,
             'size': size}
+
+
+def make_extents(nextents, secondaries, filename, axis_lengths,
+    bytes_per_trace, basename):
+    isec, nsec = 0, len(secondaries) - 1
+    total_size = np.prod(axis_lengths[1:]) * bytes_per_trace
+    frames_per_extent = math.ceil(np.prod(axis_lengths[2:]) / nextents)
+    extent_size = frames_per_extent * axis_lengths[1] * bytes_per_trace
+    extents = []
+    for i in range(nextents):
+        name = "basename{}".format(i)
+        path = osp.join(extent_dir(secondaries[isec], filename), name)
+        index = i
+        start = index * extent_size
+        size = min(extent_size, total_size)
+        extents.append(extent_dict(name, path, index, start, size))
+        isec = 0 if isec == nsec else isec + 1
+        total_size -= extent_size
+    return extents
 
 
 def get_names(path, start):
@@ -734,6 +835,25 @@ def get_minimal_propset(properties, start_offset=0):
         properties[th.label] = th
         byte_offset += th.size
     return byte_offset
+
+
+def get_header_length(trace_headers):
+    """
+    -i- trace_headers : dict, element is TraceHeader object
+    """
+    total_bytes = 0
+    for key, th in trace_headers.items():
+        total_bytes += th.format_size
+    return total_bytes
+
+
+def get_nextents(dims, fmt):
+    n = np.prod(dims) * FORMAT_BYTE[fmt] / (2.0 * 1024.0**3) + 10.0
+    return math.ceil(np.clip(n, 1, 256))
+
+
+def make_primary_dir(jsd):
+    pass
 
 
 if __name__ == '__main__':
