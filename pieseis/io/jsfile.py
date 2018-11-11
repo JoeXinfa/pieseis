@@ -24,6 +24,7 @@ JS_TRACE_DATA = "TraceFile"
 JS_TRACE_HEADERS = "TraceHeaders"
 JS_VIRTUAL_FOLDERS = "VirtualFolders"
 JS_HISTORY = "History"
+JS_COMMENT = "JavaSeis.py - JavaSeis File Propertties 2006.3"
 
 # constant filenames
 JS_TRACE_MAP = "TraceMap"
@@ -314,7 +315,7 @@ class JavaSeisDataset(object):
         write_file_properties(jsd)
         write_name_properties(jsd)
         write_status_properties(jsd)
-#        write_extent_manager(jsd)
+        write_extent_manager(jsd)
         write_virtual_folders(jsd)
 
     @staticmethod
@@ -900,7 +901,7 @@ def write_file_properties(jsd):
         label = dictPMtoJS[key] if key in dictPMtoJS else key
         axis_labels.append(label)
 
-    add_child_par(fps, "Comments",          "string", " \"JavaSeis.py - JavaSeis File Propertties 2006.3\" ")
+    add_child_par(fps, "Comments",          "string", " \"{}\" ".format(JS_COMMENT))
     add_child_par(fps, "JavaSeisVersion",   "string", " 2006.3 ")
     add_child_par(fps, "DataType",          "string",  " {} ".format(jsd.data_type))
     add_child_par(fps, "TraceFormat",       "string",  " {} ".format(DATA_FORMAT_TO_TRACE_FORMAT[jsd.data_format]))
@@ -1023,9 +1024,8 @@ def add_child_par(parent, name, fmt, value):
 
 def write_name_properties(jsd):
     fn = osp.join(jsd.filename, JS_NAME_FILE)
-    print('name2 =', jsd.description)
     with open(fn, 'w') as f:
-        f.writelines("#JavaSeis.py - JavaSeis File Properties 2006.3\n")
+        f.writelines("#{}\n".format(JS_COMMENT))
         f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
         f.writelines("DescriptiveName={}\n".format(jsd.description))
 
@@ -1033,14 +1033,38 @@ def write_name_properties(jsd):
 def write_status_properties(jsd):
     fn = osp.join(jsd.filename, JS_STATUS_FILE)
     with open(fn, 'w') as f:
-        f.writelines("#JavaSeis.py - JavaSeis File Properties 2006.3\n")
+        f.writelines("#{}\n".format(JS_COMMENT))
         f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
         f.writelines("HasTraces={}\n".format(jsd.has_traces))
 
 
+def write_extent_manager(jsd):
+    nb = np.prod(jsd.axis_lengths[1:]) * jsd.trace_length # minus 1 or not?
+    root = etree.Element("parset", name="ExtentManager")
+    add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
+    add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.trc_extents[0]['size']))
+    add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(jsd.trc_extents)))
+    add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
+    add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_DATA))
+    add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
+    fn = osp.join(jsd.filename, JS_TRACE_DATA_XML)
+    write_etree_to_file(fn, root)
+
+    nb = np.prod(jsd.axis_lengths[1:]) * jsd.header_length # minus 1 or not?
+    root = etree.Element("parset", name="ExtentManager")
+    add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
+    add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.hdr_extents[0]['size']))
+    add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(jsd.hdr_extents)))
+    add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
+    add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_HEADERS))
+    add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
+    fn = osp.join(jsd.filename, JS_TRACE_HEADERS_XML)
+    write_etree_to_file(fn, root)
+
+
 if __name__ == '__main__':
-    testpath = "/home/asbjorn/datasets/2hots.js"
+    testpath = "/home/zhuu/datasets/test.js"
     if not osp.exists(testpath):
-        print("'{0}' dataset does not exists..".format(testpath))
+        print("'{0}' dataset does not exists".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
     print(jsDataset)
