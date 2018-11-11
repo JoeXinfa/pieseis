@@ -4,6 +4,8 @@ import struct
 import warnings
 import math
 import shutil
+import pytz
+from datetime import datetime
 
 from lxml import etree
 import numpy as np
@@ -310,8 +312,8 @@ class JavaSeisDataset(object):
         make_extent_dirs(jsd)
         create_map(jsd)
         write_file_properties(jsd)
-#        write_name_properties(jsd)
-#        write_status_properties(jsd)
+        write_name_properties(jsd)
+        write_status_properties(jsd)
 #        write_extent_manager(jsd)
         write_virtual_folders(jsd)
 
@@ -925,7 +927,6 @@ def write_file_properties(jsd):
     # custom properties
     cps = etree.SubElement(root, "parset", name="CustomProperties")
     for prop in jsd.data_properties:
-        print('testing...', prop.label, prop.format, prop.value)
         add_child_par(cps, prop.label, prop.format, " {} ".format(prop.value))
         # TODO need test if SeisSpace can load the Stacked = "True"
 
@@ -1018,6 +1019,23 @@ def add_child_par(parent, name, fmt, value):
     #child.set("name", name)
     #child.set("type", fmt)
     child.text = value
+
+
+def write_name_properties(jsd):
+    fn = osp.join(jsd.filename, JS_NAME_FILE)
+    print('name2 =', jsd.description)
+    with open(fn, 'w') as f:
+        f.writelines("#JavaSeis.py - JavaSeis File Properties 2006.3\n")
+        f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
+        f.writelines("DescriptiveName={}\n".format(jsd.description))
+
+
+def write_status_properties(jsd):
+    fn = osp.join(jsd.filename, JS_STATUS_FILE)
+    with open(fn, 'w') as f:
+        f.writelines("#JavaSeis.py - JavaSeis File Properties 2006.3\n")
+        f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
+        f.writelines("HasTraces={}\n".format(jsd.has_traces))
 
 
 if __name__ == '__main__':
