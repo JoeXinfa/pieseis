@@ -62,6 +62,14 @@ DATA_FORMAT_TO_TRACE_FORMAT = {
     "int16"   : "COMPRESSED_INT16"
 }
 
+# https://docs.python.org/3/library/struct.html
+DATA_ORDER_TO_CHAR = {
+    "LITTLE_ENDIAN" : "<",
+    "BIG_ENDIAN"    : ">",
+    "NATIVE"        : "=",
+    "NETWORK"       : "!"
+}
+
 
 def check_io(filename, mode):
     if not filename.endswith(".js"):
@@ -165,6 +173,7 @@ class JavaSeisDataset(object):
             jsd.data_type       = jsd._file_properties.data_type
             jsd.data_format     = _data_format
             jsd.data_order      = jsd._file_properties.byte_order
+            jsd.data_order_char = DATA_ORDER_TO_CHAR[jsd.data_order]
             jsd.axis_lengths    = jsd._file_properties.axis_lengths
             jsd.axis_units      = jsd._file_properties.axis_units
             jsd.axis_domains    = jsd._file_properties.axis_domains
@@ -204,6 +213,7 @@ class JavaSeisDataset(object):
             jsd.data_type       = stock_dtype['CUSTOM'] if data_type is None else data_type
             jsd.data_format     = _data_format
             jsd.data_order      = "LITTLE_ENDIAN" if data_order is None else data_order
+            jsd.data_order_char = DATA_ORDER_TO_CHAR[jsd.data_order]
             jsd.axis_lengths    = axis_lengths
             jsd.axis_units      = axis_units
             jsd.axis_domains    = axis_domains
@@ -235,6 +245,7 @@ class JavaSeisDataset(object):
             jsd.data_type       = jsdsim.data_type if data_type is None else data_type
             jsd.data_format     = _data_format
             jsd.data_order      = jsdsim.data_order if data_order is None else data_order
+            jsd.data_order_char = DATA_ORDER_TO_CHAR[jsd.data_order]
             jsd.axis_lengths    = axis_lengths
             jsd.axis_units      = jsdsim.axis_units if len(axis_units) == 0 else axis_units
             jsd.axis_domains    = jsdsim.axis_domains if len(axis_domains) == 0 else axis_domains
@@ -384,6 +395,66 @@ class JavaSeisDataset(object):
         self._file_properties = FileProperties(parset_file_properties)
         self._trace_properties = TraceProperties(parset_trace_properties)
         self._custom_properties = CustomProperties(parset_custom_properties)
+
+    def read_frame_trcs(self, iframe):
+        """
+        -i- iframe : int, index of frame, range is [1, nframe]
+        -o- trcs : array, float32, shape (ntrace, nsample)
+        """
+        fold = self._get_fold(iframe)
+        if fold == 0:
+            return 0
+        frame_size = self.trace_length * self.axis_lengths[1]
+        offset = (iframe - 1) * frame_size
+        extent = get_extent_index(self.trc_extents, offset)
+        offset -= extent['start']
+        if self.data_format == "int16":
+            f = open(extent['path'], "rb")
+            array = unpack_frame(f, offset, self.compressor, fold)
+            f.close()
+            return array
+        elif self.data_format == "float32":
+            pass
+        else:
+            raise ValueError("Unsupported trace format".format(self.data_format))
+
+    def read_frame_hdrs(self, iframe):
+        assert self.mode != 'w'
+        fold = self._get_fold(iframe)
+        if fold == 0:
+            return 0
+        #TODO set trace type dead from fold+1 to frame length
+
+        frame_size = self.header_length * self.axis_lengths[1]
+        offset = (iframe - 1) * frame_size
+        extent = get_extent_index(self.hdr_extents, offset)
+        offset -= extent['start']
+        with open(extent['path'], "rb") as f:
+            f.seek(offset)
+            buffer = f.read(self.header_length * fold)
+        return buffer # bytes
+#        print('buffer =', type(buffer))
+#        print('buffer =', len(buffer))
+#        t = buffer[0:4]
+#        tv = struct.unpack('<i', t) # INTEGER
+#        t = buffer[12:16]
+#        tv = struct.unpack('<f', t) # FLOAT
+#        print('test =', tv)
+
+    def get_trace_header(self, header_label, itrace, iframe):
+        assert header_label in self.properties
+        frame_bytes = self.read_frame_hdrs(iframe)
+        b1 = self.header_length * (itrace - 1)
+        b2 = b1 + self.header_length
+        trace_bytes = frame_bytes[b1:b2]
+
+        th = self.properties[header_label]
+        b1 = th._byte_offset # is it faster than th.byte_offset? safe?
+        b2 = b1 + th._format_size
+        header_bytes = trace_bytes[b1:b2]
+
+        fmt = self.data_order_char + th._format_char
+        return struct.unpack(fmt, header_bytes)[0] # tuple first value
 
     def is_open(self):
         return self._is_open
@@ -565,33 +636,6 @@ class JSFileReader(object):
     @property
     def javaseis_dataset(self):
         return self._js_dataset
-
-    def read_frame_trcs(self, iframe):
-        """
-        -i- iframe : int, index of frame, [1, nframe]
-        -o- trcs : array, float32, shape (ntrace, nsample)
-        """
-        trclen = self._js_dataset.trace_length
-        fold = self._js_dataset._get_fold(iframe)
-
-        #size = trclen * self.nr_traces # frame byte size
-        offset = (iframe - 1) * trclen * self.nr_traces
-        extents = self._js_dataset._trc_extents
-        extent = get_extent_index(extents, offset)
-        offset -= extent['start']
-        trcfmt = self._js_dataset.data_format
-        if trcfmt == "int16":
-            f = open(extent['path'], "rb")
-            cps = self._js_dataset._trace_compressor
-            array = unpack_frame(f, offset, cps, fold)
-            return array
-        elif trcfmt == "float32":
-            pass
-        else:
-            raise ValueError("Unsupported trace format".format(trcfmt))
-
-    def read_frame_hdrs(self):
-        pass
 
 
 def parse_xml_file(filename):

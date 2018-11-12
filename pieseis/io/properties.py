@@ -549,18 +549,23 @@ class TraceHeader(object):
         if self._format == "INTEGER":
             self._format_type = 'int32'
             self._format_size = 4 # bytes
+            self._format_char = 'i' # for struct pack/unpack
         elif self._format == "LONG":
             self._format_type = 'int64'
             self._format_size = 8 # bytes
+            self._format_char = 'q'
         elif self._format == "FLOAT":
             self._format_type = 'float32'
             self._format_size = 4 # bytes
+            self._format_char = 'f'
         elif self._format == "DOUBLE":
             self._format_type = 'float64'
             self._format_size = 8 # bytes
+            self._format_char = 'd'
         elif self._format == "BYTESTRING":
             self._format_type = 'uint8'
             self._format_size = 1 # bytes
+            self._format_char = 'B'
         else:
             raise ValueError("unrecognized format".format(self._format))
 
