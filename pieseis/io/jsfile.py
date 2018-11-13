@@ -13,10 +13,11 @@ import numpy as np
 from .properties import (FileProperties, TraceProperties, CustomProperties,
     VirtualFolders, TraceFileXML, TraceHeadersXML, TraceHeader)
 from .defs import GridDefinition
-from .trace_compressor import get_trace_compressor, get_trace_length, unpack_frame
+from .trace_compressor import (get_trace_compressor, get_trace_length,
+    unpack_frame, pack_frame)
 from .compat import dictJStoPM, dictPMtoJS
 from .stock_props import (minimal_props, stock_props, stock_dtype,
-                          stock_unit, stock_domain)
+    stock_unit, stock_domain)
 
 DOT_XML = ".xml"
 JS_FILE_PROPERTIES = "FileProperties"
@@ -35,6 +36,8 @@ JS_TRACE_DATA_XML = JS_TRACE_DATA + DOT_XML
 JS_TRACE_HEADERS_XML = JS_TRACE_HEADERS + DOT_XML
 JS_VIRTUAL_FOLDERS_XML = JS_VIRTUAL_FOLDERS + DOT_XML
 JS_HISTORY_XML = JS_HISTORY + DOT_XML
+
+JS_DATA_FORMAT = "int16"
 
 # other constants
 JS_EARLYVERSION1 = "2006.01"
@@ -140,7 +143,7 @@ class JavaSeisDataset(object):
             _data_format = TRACE_FORMAT_TO_DATA_FORMAT[jsd._file_properties.trace_format]
         elif mode == 'w' and similar_to == "":
             _axis_lengths = axis_lengths
-            _data_format = "float32" if data_format is None else data_format
+            _data_format = JS_DATA_FORMAT if data_format is None else data_format
         elif mode == 'w' and similar_to != "":
             jsdsim = JavaSeisDataset.open(similar_to)
             _axis_lengths = jsdsim.axis_lengths if len(axis_lengths) == 0 else axis_lengths
@@ -256,7 +259,7 @@ class JavaSeisDataset(object):
             jsd.data_properties = data_properties
             jsd.geom            = jsdsim.geom if geometry is None else geometry
             jsd.secondaries     = jsdsim.secondaries if secondaries is None else secondaries
-            nextents            = jsdsim.trc_extents if nextents == 0 else nextents
+            nextents            = len(jsdsim.trc_extents) if nextents == 0 else nextents
 
         if mode == 'w':
             ndim = len(jsd.axis_lengths)
@@ -332,15 +335,18 @@ class JavaSeisDataset(object):
     @staticmethod
     def _validate_js_dir(path):
         """Gets called during the construction of this object instance"""
-        def js_missing(f):
-            raise IOError("Missing: {}".format(f))
+        def js_missing(f, warn=False):
+            if warn:
+                warnings.warn("Missing: {}".format(f))
+            else:
+                raise IOError("Missing: {}".format(f))
         files = os.listdir(path)
 
         if JS_FILE_PROPERTIES_XML not in files:
             js_missing(JS_FILE_PROPERTIES_XML)
 
         if JS_HISTORY_XML not in files:
-            js_missing(JS_HISTORY_XML)
+            js_missing(JS_HISTORY_XML, warn=True)
 
         if JS_TRACE_DATA_XML not in files:
             js_missing(JS_TRACE_DATA_XML)
@@ -409,12 +415,11 @@ class JavaSeisDataset(object):
         extent = get_extent_index(self.trc_extents, offset)
         offset -= extent['start']
         if self.data_format == "int16":
-            f = open(extent['path'], "rb")
-            array = unpack_frame(f, offset, self.compressor, fold)
-            f.close()
+            with open(extent['path'], "rb") as f:
+                array = unpack_frame(f, offset, self.compressor, fold)
             return array
         elif self.data_format == "float32":
-            pass
+            pass # TODO
         else:
             raise ValueError("Unsupported trace format".format(self.data_format))
 
@@ -455,6 +460,48 @@ class JavaSeisDataset(object):
 
         fmt = self.data_order_char + th._format_char
         return struct.unpack(fmt, header_bytes)[0] # tuple first value
+
+    def set_trace_header(self, header_value, header_label, itrace, iframe):
+        assert header_label in self.properties
+        b1 = self.header_length * (itrace - 1)
+        th = self.properties[header_label]
+        b1 += th._byte_offset # offset within this frame
+
+        fmt = self.data_order_char + th._format_char
+        header_bytes = struct.pack(fmt, header_value)
+
+        # write file
+        frame_size = self.header_length * self.axis_lengths[1]
+        offset = (iframe - 1) * frame_size
+        extent = get_extent_index(self.hdr_extents, offset)
+        offset -= extent['start']
+        with open(extent['path'], "ab") as f:
+            f.seek(offset + b1)
+            f.write(header_bytes)
+
+    def write_frame_hdrs(self, hdrs, fold, iframe):
+        frame_size = self.header_length * self.axis_lengths[1]
+        offset = (iframe - 1) * frame_size
+        extent = get_extent_index(self.hdr_extents, offset)
+        offset -= extent['start']
+        with open(extent['path'], "ab") as f:
+            f.seek(offset)
+            f.write(hdrs)
+
+    def write_frame_trcs(self, trcs, fold, iframe):
+        frame_size = self.trace_length * self.axis_lengths[1]
+        offset = (iframe - 1) * frame_size
+        extent = get_extent_index(self.trc_extents, offset)
+        offset -= extent['start']
+        if self.data_format == "int16":
+            with open(extent['path'], "ab") as f:
+                pack_frame(f, offset, self.compressor, fold, trcs)
+        elif self.data_format == "float32":
+            with open(extent['path'], "ab") as f:
+                f.seek(offset)
+                #f.write(trcs) # TODO convert
+        else:
+            raise ValueError("Unsupported trace format".format(self.data_format))
 
     def is_open(self):
         return self._is_open
@@ -729,7 +776,7 @@ def make_extents(nextents, secondaries, filename, axis_lengths,
     extent_size = frames_per_extent * axis_lengths[1] * bytes_per_trace
     extents = []
     for i in range(nextents):
-        name = "basename{}".format(i)
+        name = "{}{}".format(basename, i)
         path = osp.join(extent_dir(secondaries[isec], filename), name)
         index = i
         start = index * extent_size
@@ -924,7 +971,8 @@ def make_primary_dir(jsd):
 def make_extent_dirs(jsd):
     for path in jsd.secondaries:
         extpath = extent_dir(path, jsd.filename)
-        make_directory(extpath)
+        if extpath != jsd.filename:
+            make_directory(extpath)
 
 
 def create_map(jsd):

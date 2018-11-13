@@ -60,7 +60,6 @@ def unpack_trace(stream, trace_compressor, trace_offset):
             scalar = 1.0 / scalar
         else:
             scalar = 0.0
-        #print('i =', i, scalar, nwindows)
 
         stream.seek(trace_offset + 4 * nwindows + 2 * k1)
 
@@ -90,10 +89,52 @@ def unpack_frame(stream, frame_offset, trace_compressor, fold):
         raise ValueError('This method only works for int16')
     trclen = get_trace_length(trace_compressor)
     frame = []
-    #for i in range(1): # for quick testing
+#    for i in range(1): # for quick testing
     for i in range(fold):
         trace_offset = i * trclen + frame_offset
         trace = unpack_trace(stream, trace_compressor, trace_offset)
         frame.append(trace)
     frame = np.array(frame, dtype='float32')
     return frame
+
+
+def pack_frame(stream, frame_offset, trace_compressor, fold, frame_data):
+    """
+    -i- frame_data : array, shape is (ntrace, nsample)
+    """
+    if trace_compressor['trace_format'] != 'int16':
+        raise ValueError('This method only works for int16')
+    trclen = get_trace_length(trace_compressor)
+    for i in range(fold):
+        trace_data = frame_data[i, :]
+        trace_offset = i * trclen + frame_offset
+        pack_trace(stream, trace_compressor, trace_offset, trace_data)
+
+
+def pack_trace(stream, trace_compressor, trace_offset, trace_data):
+    k1, k2 = 0, 0
+    nsamples = trace_compressor['nsamples']
+    nwindows = trace_compressor['nwindows']
+    windowln = trace_compressor['windowln']
+    for i in range(nwindows):
+        # set sample range
+        k1 = k2
+        k2 = min(k1 + windowln, nsamples)
+
+        # max absolute value in this window
+        maxval = 0.0
+        for k in range(k1, k2):
+            maxval = max(abs(trace_data[k]), maxval)
+        scalar = 32766.0 / maxval if maxval > 0 else 0.0
+
+        # write scalar factor to buffer
+        stream.seek(trace_offset + 4 * i)
+        stream.write(struct.pack('<f', scalar))
+
+        n = k2 - k1
+        fmt = '<' + str(n) + 'h'
+        array = scalar * trace_data[k1:k2] + 32767
+        array = array.astype('int16')
+
+        stream.seek(trace_offset + 4 * nwindows + 2 * k1)
+        stream.write(struct.pack(fmt, *array))
