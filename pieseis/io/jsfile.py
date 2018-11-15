@@ -489,6 +489,7 @@ class JavaSeisDataset(object):
         b1 += th._byte_offset # offset within this frame
 
         fmt = self.data_order_char + th._format_char
+        header_value = th.cast_value(header_value)
         header_bytes = struct.pack(fmt, header_value)
 
         # write file

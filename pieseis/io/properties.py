@@ -1,4 +1,5 @@
 from lxml import etree
+import numpy as np
 
 
 def str2bool(str):
@@ -570,6 +571,18 @@ class TraceHeader(object):
             raise ValueError("unrecognized format".format(self._format))
 
         self._size = self._format_size * self._element_count
+
+    def cast_value(self, header_value):
+        if self._format_char == 'i':
+            return np.int32(header_value)
+        elif self._format_char == 'q':
+            return np.int64(header_value)
+        elif self._format_char == 'f':
+            return np.float32(header_value)
+        elif self._format_char == 'd':
+            return np.float64(header_value)
+        elif self._format_char == 'B':
+            return np.uint8(header_value)
 
     @property
     def label(self):
