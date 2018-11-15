@@ -440,15 +440,31 @@ class JavaSeisDataset(object):
         offset -= extent['start']
         with open(extent['path'], "rb") as f:
             f.seek(offset)
-            buffer = f.read(self.header_length * fold)
-        return buffer # bytes
-#        print('buffer =', type(buffer))
-#        print('buffer =', len(buffer))
-#        t = buffer[0:4]
-#        tv = struct.unpack('<i', t) # INTEGER
-#        t = buffer[12:16]
-#        tv = struct.unpack('<f', t) # FLOAT
-#        print('test =', tv)
+            frame_bytes = f.read(self.header_length * fold)
+        #return self.unpack_frame_hdrs(frame_bytes, fold)
+        return frame_bytes
+
+    def unpack_frame_hdrs(self, frame_bytes, fold):
+        TraceHeaders = collections.namedtuple("TraceHeaders", self.properties.keys())
+        frame_headers = []
+        for itrace in range(fold):
+            trace_headers = []
+            tb1 = self.header_length * itrace
+            tb2 = tb1 + self.header_length
+            trace_bytes = frame_bytes[tb1:tb2]
+            #for key, th in self.properties.items(): # ordered dict
+            for key in TraceHeaders._fields:
+                th = self.properties[key]
+                b1 = th._byte_offset
+                b2 = b1 + th._format_size
+                header_bytes = trace_bytes[b1:b2]
+                fmt = self.data_order_char + th._format_char
+                header_value = struct.unpack(fmt, header_bytes)[0]
+                trace_headers.append(header_value)
+            nt = TraceHeaders(*trace_headers)
+            frame_headers.append(nt)
+        return frame_headers
+        # TODO Is there any use case for this list of namedtuple?
 
     def get_trace_header(self, header_label, itrace, iframe):
         assert header_label in self.properties
