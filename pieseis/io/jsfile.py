@@ -445,41 +445,42 @@ class JavaSeisDataset(object):
         return frame_bytes
 
     def unpack_frame_hdrs(self, frame_bytes, fold):
+        """
+        -o- frame_headers : list, element is namedtuple of headers, one for one trace
+        Is there any use case of this output?
+        """
         TraceHeaders = collections.namedtuple("TraceHeaders", self.properties.keys())
         frame_headers = []
         for itrace in range(fold):
             trace_headers = []
-            tb1 = self.header_length * itrace
-            tb2 = tb1 + self.header_length
-            trace_bytes = frame_bytes[tb1:tb2]
-            #for key, th in self.properties.items(): # ordered dict
             for key in TraceHeaders._fields:
                 th = self.properties[key]
-                b1 = th._byte_offset
-                b2 = b1 + th._format_size
-                header_bytes = trace_bytes[b1:b2]
                 fmt = self.data_order_char + th._format_char
-                header_value = struct.unpack(fmt, header_bytes)[0]
+                offset = self.header_length * itrace + th._byte_offset
+                header_value = struct.unpack_from(fmt, frame_bytes, offset=offset)[0]
                 trace_headers.append(header_value)
             nt = TraceHeaders(*trace_headers)
             frame_headers.append(nt)
         return frame_headers
-        # TODO Is there any use case for this list of namedtuple?
 
     def get_trace_header(self, header_label, itrace, iframe):
         assert header_label in self.properties
         frame_bytes = self.read_frame_hdrs(iframe)
-        b1 = self.header_length * (itrace - 1)
-        b2 = b1 + self.header_length
-        trace_bytes = frame_bytes[b1:b2]
+
+#        b1 = self.header_length * (itrace - 1)
+#        b2 = b1 + self.header_length
+#        trace_bytes = frame_bytes[b1:b2]
+#        th = self.properties[header_label]
+#        b1 = th._byte_offset # is it faster than th.byte_offset? safe?
+#        b2 = b1 + th._format_size
+#        header_bytes = trace_bytes[b1:b2]
+#        fmt = self.data_order_char + th._format_char
+#        return struct.unpack(fmt, header_bytes)[0] # tuple first value
 
         th = self.properties[header_label]
-        b1 = th._byte_offset # is it faster than th.byte_offset? safe?
-        b2 = b1 + th._format_size
-        header_bytes = trace_bytes[b1:b2]
-
         fmt = self.data_order_char + th._format_char
-        return struct.unpack(fmt, header_bytes)[0] # tuple first value
+        offset = self.header_length * (itrace - 1) + th._byte_offset
+        return struct.unpack_from(fmt, frame_bytes, offset=offset)
 
     def set_trace_header(self, header_value, header_label, itrace, iframe):
         assert header_label in self.properties
