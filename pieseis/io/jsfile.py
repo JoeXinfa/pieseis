@@ -971,7 +971,8 @@ def make_primary_dir(jsd):
 def make_extent_dirs(jsd):
     for path in jsd.secondaries:
         extpath = extent_dir(path, jsd.filename)
-        if extpath != jsd.filename:
+        #if extpath != jsd.filename: # C:\Users\joe vs C:/Users/joe
+        if osp.normpath(extpath) != osp.normpath(jsd.filename):
             make_directory(extpath)
 
 
