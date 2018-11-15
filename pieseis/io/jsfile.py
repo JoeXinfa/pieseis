@@ -6,6 +6,10 @@ import math
 import shutil
 import pytz
 from datetime import datetime
+import collections
+
+# TODO python collections.namedtuple check it out and
+# compare with julia NamedTuple as used in TeaSeis.jl
 
 from lxml import etree
 import numpy as np
@@ -920,6 +924,9 @@ def get_trace_properties(ndim, property_defs, property_defs_add,
             th.byte_offset = byte_offset
             properties[th.label] = th
             byte_offset += th.size
+
+    # sort by label
+    properties = collections.OrderedDict(sorted(properties.items()))
 
     return properties, _axis_propdefs
 
