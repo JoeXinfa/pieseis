@@ -498,7 +498,9 @@ class JavaSeisDataset(object):
         offset = (iframe - 1) * frame_size
         extent = get_extent_index(self.hdr_extents, offset)
         offset -= extent['start']
-        with open(extent['path'], "ab") as f:
+        filename = extent['path']
+        mode = "r+b" if osp.isfile(filename) else "wb"
+        with open(filename, mode) as f:
             f.seek(offset + b1)
             f.write(header_bytes)
 
@@ -507,7 +509,9 @@ class JavaSeisDataset(object):
         offset = (iframe - 1) * frame_size
         extent = get_extent_index(self.hdr_extents, offset)
         offset -= extent['start']
-        with open(extent['path'], "ab") as f:
+        filename = extent['path']
+        mode = "r+b" if osp.isfile(filename) else "wb"
+        with open(filename, mode) as f:
             f.seek(offset)
             f.write(hdrs)
 
@@ -516,11 +520,13 @@ class JavaSeisDataset(object):
         offset = (iframe - 1) * frame_size
         extent = get_extent_index(self.trc_extents, offset)
         offset -= extent['start']
+        filename = extent['path']
+        mode = "r+b" if osp.isfile(filename) else "wb"
         if self.data_format == "int16":
-            with open(extent['path'], "ab") as f:
+            with open(filename, mode) as f:
                 pack_frame(f, offset, self.compressor, fold, trcs)
         elif self.data_format == "float32":
-            with open(extent['path'], "ab") as f:
+            with open(filename, mode) as f:
                 f.seek(offset)
                 #f.write(trcs) # TODO convert
         else:
