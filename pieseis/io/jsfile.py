@@ -78,25 +78,6 @@ DATA_ORDER_TO_CHAR = {
 }
 
 
-def check_io(filename, mode):
-    if not filename.endswith(".js"):
-        warnings.warn("JavaSeis filename does not end with '.js'")
-    if mode == 'r' or mode == 'r+':
-        if not osp.isdir(filename):
-            raise IOError("JavaSeis filename is not directory")
-        if not os.access(filename, os.R_OK):
-            raise IOError("Missing read access")
-    elif mode == 'w':
-        if osp.exists(filename):
-            raise IOError("Path for JavaSeis dataset already exists")
-            # TODO give option to overwrite (delete old and write new)
-        parent_directory = osp.dirname(filename)
-        if not os.access(parent_directory, os.W_OK):
-            raise IOError("Missing write access in {}".format(parent_directory))
-    else:
-        raise ValueError("unrecognized mode: {}".format(mode))
-
-
 class JavaSeisDataset(object):
     """
     Class to host a JavaSeis dataset. This class will be used by both the
@@ -104,6 +85,25 @@ class JavaSeisDataset(object):
     """
     def __init__(self, filename):
         self.path = filename
+
+    @staticmethod
+    def _check_io(filename, mode):
+        if not filename.endswith(".js"):
+            warnings.warn("JavaSeis filename does not end with '.js'")
+        if mode == 'r' or mode == 'r+':
+            if not osp.isdir(filename):
+                raise IOError("JavaSeis filename is not directory")
+            if not os.access(filename, os.R_OK):
+                raise IOError("Missing read access")
+        elif mode == 'w':
+            if osp.exists(filename):
+                raise IOError("Path for JavaSeis dataset already exists")
+                # TODO give option to overwrite (delete old and write new)
+            parent_directory = osp.dirname(filename)
+            if not os.access(parent_directory, os.W_OK):
+                raise IOError("Missing write access in {}".format(parent_directory))
+        else:
+            raise ValueError("unrecognized mode: {}".format(mode))
 
     @classmethod
     def open(cls, filename,
@@ -135,14 +135,14 @@ class JavaSeisDataset(object):
         -i- filename : string, path of the JavaSeis dataset e.g. "data.js"
         -i- mode : string, "r" read, "w" write/create, "r+" read and write
         """
-        check_io(filename, mode)
+        JavaSeisDataset._check_io(filename, mode)
         jsd = JavaSeisDataset(filename)
         if mode == 'r' or mode == 'r+':
             jsd.is_valid = jsd._validate_js_dir(jsd.path)
             jsd._read_properties()
             trace_properties = jsd._trace_properties._trace_headers
             axis_labels = jsd._file_properties.axis_labels
-            _axis_propdefs = get_axis_propdefs(trace_properties, axis_labels)
+            _axis_propdefs = JavaSeisDataset.get_axis_propdefs(trace_properties, axis_labels)
             _axis_lengths = jsd._file_properties.axis_lengths
             _data_format = TRACE_FORMAT_TO_DATA_FORMAT[jsd._file_properties.trace_format]
         elif mode == 'w' and similar_to == "":
@@ -154,9 +154,8 @@ class JavaSeisDataset(object):
             _data_format = jsdsim.data_format if data_format is None else data_format
         if mode == 'w':
             ndim = len(_axis_lengths)
-            trace_properties, _axis_propdefs = get_trace_properties(ndim,
-                properties, properties_add, properties_rm, axis_propdefs,
-                similar_to)
+            trace_properties, _axis_propdefs = JavaSeisDataset.get_trace_properties(
+            ndim, properties, properties_add, properties_rm, axis_propdefs, similar_to)
 
         #self._is_open = True
         # TODO jsd._validate_js_dir after write complete
@@ -169,12 +168,12 @@ class JavaSeisDataset(object):
         jsd.filename = filename
         jsd.mode = mode
         jsd.current_volume = -1
-        jsd.header_length = get_header_length(jsd.properties)
+        jsd.header_length = jsd.get_header_length(jsd.properties)
         jsd.trace_length = get_trace_length(jsd.compressor)
 
         if mode == 'r' or mode == 'r+':
             filename = osp.join(jsd.path, JS_NAME_FILE)
-            jsd.description = get_description(filename)
+            jsd.description = JavaSeisDataset.get_description(filename)
 
             jsd.is_mapped       = jsd._file_properties.is_mapped
             jsd.data_type       = jsd._file_properties.data_type
@@ -195,7 +194,7 @@ class JavaSeisDataset(object):
             jsd.has_traces = False
             filename = osp.join(jsd.path, JS_STATUS_FILE)
             if osp.isfile(filename):
-                jsd.has_traces = get_status(filename)
+                jsd.has_traces = JavaSeisDataset.get_status(filename)
 
             jsd._read_virtual_folders()
             jsd.secondaries = jsd._virtual_folders.secondary_folders
@@ -315,13 +314,13 @@ class JavaSeisDataset(object):
             raise ValueError("secondaries list length < 1")
 
         # choose default number of exents (heuristic)
-        nextents = get_nextents(jsd.axis_lengths, jsd.data_format) if nextents == 0 else nextents
+        nextents = jsd.get_nextents(jsd.axis_lengths, jsd.data_format) if nextents == 0 else nextents
         nextents = min(nextents, np.prod(jsd.axis_lengths[2:]))
 
         # trace and header extents
-        jsd.trc_extents = make_extents(nextents, jsd.secondaries,
+        jsd.trc_extents = JavaSeisDataset.make_extents(nextents, jsd.secondaries,
             jsd.filename, jsd.axis_lengths, jsd.trace_length, "TraceFile")
-        jsd.hdr_extents = make_extents(nextents, jsd.secondaries,
+        jsd.hdr_extents = JavaSeisDataset.make_extents(nextents, jsd.secondaries,
             jsd.filename, jsd.axis_lengths, jsd.header_length, "TraceHeaders")
 
         # trace map
@@ -336,6 +335,21 @@ class JavaSeisDataset(object):
         jsd.write_status_properties()
         jsd.write_extent_manager()
         jsd.write_virtual_folders()
+
+    @staticmethod
+    def get_nextents(dims, fmt):
+        n = np.prod(dims) * FORMAT_BYTE[fmt] / (2.0 * 1024.0**3) + 10.0
+        return math.ceil(np.clip(n, 1, 256))
+
+    @staticmethod
+    def get_header_length(trace_headers):
+        """
+        -i- trace_headers : dict, element is TraceHeader object
+        """
+        total_bytes = 0
+        for key, th in trace_headers.items():
+            total_bytes += th.format_size
+        return total_bytes
 
     @staticmethod
     def _validate_js_dir(path):
@@ -616,13 +630,13 @@ class JavaSeisDataset(object):
         xml = self._trace_file_xml
         secondaries = self._virtual_folders.secondary_folders
         filename = self.path
-        self._trc_extents = get_extents(xml, secondaries, filename)
+        self._trc_extents = JavaSeisDataset.get_extents(xml, secondaries, filename)
 
     def _set_hdr_extents(self):
         xml = self._trace_headers_xml
         secondaries = self._virtual_folders.secondary_folders
         filename = self.path
-        self._hdr_extents = get_extents(xml, secondaries, filename)
+        self._hdr_extents = JavaSeisDataset.get_extents(xml, secondaries, filename)
 
     def _get_fold(self, iframe):
         if not self.is_mapped:
@@ -778,7 +792,7 @@ class JavaSeisDataset(object):
         tps = etree.SubElement(root, "parset", name="TraceProperties")
         i = 0
         for key, th in self.properties.items():
-            add_child_trace_property(tps, i, th)
+            self.add_child_trace_property(tps, i, th)
             i += 1
 
         # custom properties
@@ -812,15 +826,265 @@ class JavaSeisDataset(object):
         fn = osp.join(self.filename, JS_FILE_PROPERTIES_XML)
         write_etree_to_file(fn, root)
 
+    @staticmethod
+    def add_child_trace_property(parent, index, trace_header):
+        """
+        -i- parent : lxml.etree.Element or SubElement
+        -i- index : int
+        -i- trace_header : object, TraceHeader
+        """
+        header = etree.SubElement(parent, "parset", name="entry_{}".format(index))
+        add_child_par(header, "label",        "string", " {} ".format(trace_header.label))
+        add_child_par(header, "description",  "string", " \"{}\" ".format(trace_header.description))
+        add_child_par(header, "format",       "string", " {} ".format(trace_header.format))
+        add_child_par(header, "elementCount", "int", " {} ".format(trace_header.element_count))
+        add_child_par(header, "byteOffset",   "int", " {} ".format(trace_header.byte_offset))
+
     def make_primary_dir(self):
         make_directory(self.filename)
 
     def make_extent_dirs(self):
         for path in self.secondaries:
-            extpath = extent_dir(path, self.filename)
+            extpath = JavaSeisDataset.extent_dir(path, self.filename)
             #if extpath != self.filename: # C:Usersjoe vs C:/Users/joe
             if osp.normpath(extpath) != osp.normpath(self.filename):
                 make_directory(extpath)
+
+    @staticmethod
+    def get_trace_properties(ndim, property_defs, property_defs_add,
+        property_defs_rm, axis_propdefs, similar_to):
+        """
+        -i- ndim : int, number of dimensions
+        -i- property_defs : dict
+        -i- property_defs_add : dict
+        -i- property_defs_rm : dict
+        -i- axis_propdefs : dict
+        -i- similar_to : string
+        'defs' is short for 'defaults' or 'defined'.
+        """
+        if similar_to == "":
+            _property_defs = property_defs # need copy.deepcopy?
+            _axis_propdefs = axis_propdefs
+        else:
+            jsd = JavaSeisDataset.open(similar_to, mode='r')
+
+            # special handling for trace properties
+            if len(property_defs) == 0:
+                _property_defs = jsd.properties
+            else:
+                assert len(property_defs_add) == 0
+                assert len(property_defs_rm) == 0
+
+            for key in property_defs_add:
+                if key not in _property_defs:
+                    _property_defs[key] = property_defs_add[key]
+            for key in property_defs_rm:
+                if key in _property_defs:
+                    _property_defs.pop(key)
+
+            if len(axis_propdefs) == 0:
+                _axis_propdefs = jsd.axis_propdefs
+            else:
+                _axis_propdefs = axis_propdefs
+
+        # initialize trace properties to an empty dictionary
+        #properties = {}
+        properties = odict()
+
+        # trace properties, minimal set (as defined by SeisSpace / ProMAX)
+        if similar_to == "":
+            byte_offset = JavaSeisDataset.add_minimal_propset(properties, start_offset=0)
+        else:
+            byte_offset = 0
+
+        # trace properties, user defined
+        for key in _property_defs:
+            if key not in properties:
+                th = _property_defs[key]
+                th.byte_offset = byte_offset
+                properties[key] = th
+                byte_offset += th.size
+
+        # axis properties
+        if len(_axis_propdefs) == 0:
+            th_list = [stock_props['SAMPLE'], stock_props['TRACE'],
+                stock_props['FRAME'], stock_props['VOLUME'],
+                stock_props['HYPRCUBE']][:min(5,ndim)]
+            for idim in range(6, ndim+1):
+                label = "DIM{}".format(idim)
+                description = "dimension {}".format(idim)
+                th = TraceHeader(values=(label, description, "INTEGER", 1, 0))
+                th_list.append(th)
+            for th in th_list: # create dict from list
+                _axis_propdefs[th.label] = th
+
+        for key, th in _axis_propdefs.items():
+            assert th.element_count == 1
+            # map from JavaSeis axis name to ProMax property label
+            if th.label in dictJStoPM:
+                th.label = dictJStoPM[th.label]
+            if th.label not in properties:
+                th.byte_offset = byte_offset
+                properties[th.label] = th
+                byte_offset += th.size
+
+        # sort by label
+        #properties = odict(sorted(properties.items()))
+        # It seems SeisSpace JavaSeis requires trace header entries sorted
+        # by their byte offset in the FileProperties.xml,
+        # thus sort by label does not work.
+
+        return properties, _axis_propdefs
+
+    @staticmethod
+    def add_minimal_propset(properties, start_offset=0):
+        """
+        -i- properties : dict, get/set minimal trace properties and add to it
+        -i- start_offset : int, start byte offset
+        """
+        byte_offset = start_offset
+        for prop in minimal_props:
+            th = stock_props[prop]
+            th.byte_offset = byte_offset
+            properties[th.label] = th
+            byte_offset += th.size
+        return byte_offset
+
+    @staticmethod
+    def get_description(filename):
+        with open(filename, 'r') as f:
+            for line in f:
+                if line[0] != '#':
+                    line = line.strip()
+                    columns = line.split('=')
+                    if columns[0] == "DescriptiveName":
+                        return columns[1]
+        return ""
+
+    @staticmethod
+    def get_status(filename):
+        with open(filename, 'r') as f:
+            for line in f:
+                if line[0] != '#':
+                    line = line.strip()
+                    columns = line.split('=')
+                    if len(columns) < 2:
+                        warnings.warn("Status info (has traces) may be incorrect")
+                        return False
+                    if columns[0] == "HasTraces" and columns[1] == 'true':
+                        return True
+        return False
+
+    @staticmethod
+    def get_axis_propdefs(trace_headers, axis_labels):
+        axis_propdefs = {}
+        for i, label in enumerate(axis_labels):
+            axis_propdefs[label] = JavaSeisDataset.get_axis_propdef(trace_headers, label, i+1)
+        return axis_propdefs
+
+
+    @staticmethod
+    def get_axis_propdef(trace_headers, label, dim):
+        # map from JavaSeis axis name to ProMax property label
+        plabel = dictJStoPM[label] if label in dictJStoPM else label
+
+        for key, value in trace_headers.items():
+            if value.label == plabel:
+                return value
+
+        # The sample and trace labels do not need a corresponding trace property.
+        # Therefore, these should be considered valid datasets.
+        if dim == 1 or dim == 2:
+            return TraceHeader(values=(label, label, 'int32', 1, 0))
+
+        raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
+                         "corresponding trace property".format(label))
+
+    @staticmethod
+    def make_extents(nextents, secondaries, filename, axis_lengths,
+        bytes_per_trace, basename):
+        isec, nsec = 0, len(secondaries) - 1
+        total_size = np.prod(axis_lengths[1:]) * bytes_per_trace
+        frames_per_extent = math.ceil(np.prod(axis_lengths[2:]) / nextents)
+        extent_size = frames_per_extent * axis_lengths[1] * bytes_per_trace
+        extents = []
+        for i in range(nextents):
+            name = "{}{}".format(basename, i)
+            path = osp.join(JavaSeisDataset.extent_dir(secondaries[isec], filename), name)
+            index = i
+            start = index * extent_size
+            size = min(extent_size, total_size)
+            extents.append(extent_dict(name, path, index, start, size))
+            isec = 0 if isec == nsec else isec + 1
+            total_size -= extent_size
+        return extents
+
+    @staticmethod
+    def get_extents(xml, secondaries, filename):
+        """
+        -i- xml : object, parsed XML file
+        -i- secondaries : list, element is string of secondary folder path
+        -i- filename : string, JavaSeis dataset filename
+        """
+        nextents = xml.nr_extents
+        basename = xml.extent_name
+        size = xml.extent_size
+        maxpos = xml.extent_maxpos
+        extents = [None] * nextents
+        for secondary in secondaries:
+            base_extpath = JavaSeisDataset.extent_dir(secondary, filename)
+            if osp.isdir(base_extpath):
+                names = get_names(base_extpath, basename)
+                for name in names:
+                    i = int(name[len(basename):])
+                    if i < nextents:
+                        start = i * size
+                        path = osp.join(base_extpath, name)
+                        extents[i] = extent_dict(name, path, i, start, size)
+
+        # TODO add missing extents (i.e. extents with all empty frames)
+
+        # the last extent might be a different size
+        extent = extents[nextents-1]
+        extent['size'] = maxpos - extent['start']
+
+        return extents
+
+    @staticmethod
+    def extent_dir(secondary, filename):
+        """
+        -i- secondary : string, path of JavaSeis secondary disk
+        -i- filename : string, JavaSeis dataset name
+        -o- extdir : string, the JavaSeis dataset secondary directory
+        """
+        is_relative = osp.isabs(filename) == False
+        pmdh = "PROMAX_DATA_HOME"
+        jsdh = "JAVASEIS_DATA_HOME"
+        datahome = os.environ[pmdh] if pmdh in os.environ else ""
+        datahome = os.environ[jsdh] if jsdh in os.environ else datahome
+        if secondary == ".":
+            return osp.abspath(filename)
+        elif datahome != "":
+            filename = osp.abspath(filename)
+            if datahome in filename:
+                # TODO test with Windows paths
+                return filename.replace(datahome, secondary)
+            message1 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set, and " +\
+            "JavaSeis filename is relative, but the working directory is not " +\
+            "consistent with JAVASEIS_DATA_HOME: datahome={}, filename={}. " +\
+            "Either unset JAVASEIS_DATA_HOME and PROMAX_DATA_HOME, " +\
+            "make your working directory correspond to datahome, " +\
+            "or use absolute file paths.".format(datahome, filename)
+            message2 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set " +\
+            "but does not seem correct: " +\
+            "datahome={}, filename={}".format(datahome, filename)
+            if is_relative and not os.getcwd().startswith(datahome):
+                raise ValueError(message1)
+            raise ValueError(message2)
+        elif is_relative:
+            return osp.join(secondary, filename)
+        else:
+            pass # TODO joinpath(secondary, is_windows() ? filename[5:end] : filename[2:end])
 
 # TODO
 # read/write in parallel with multi thread
@@ -833,99 +1097,14 @@ def parse_xml_file(filename):
     return root
 
 
-def extent_dir(secondary, filename):
-    """
-    -i- secondary : string, path of JavaSeis secondary disk
-    -i- filename : string, JavaSeis dataset name
-    -o- extdir : string, the JavaSeis dataset secondary directory
-    """
-    isrelative = osp.isabs(filename) == False
-    pmdh = "PROMAX_DATA_HOME"
-    jsdh = "JAVASEIS_DATA_HOME"
-    datahome = os.environ[pmdh] if pmdh in os.environ else ""
-    datahome = os.environ[jsdh] if jsdh in os.environ else datahome
-    if secondary == ".":
-        return osp.abspath(filename)
-    elif datahome != "":
-        filename = osp.abspath(filename)
-        if datahome in filename:
-            # TODO test with Windows paths
-            return filename.replace(datahome, secondary)
-        message1 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set, and " +\
-        "JavaSeis filename is relative, but the working directory is not " +\
-        "consistent with JAVASEIS_DATA_HOME: datahome={}, filename={}. " +\
-        "Either unset JAVASEIS_DATA_HOME and PROMAX_DATA_HOME, " +\
-        "make your working directory correspond to datahome, " +\
-        "or use absolute file paths.".format(datahome, filename)
-        message2 = "JAVASEIS_DATA_HOME or PROMAX_DATA_HOME is set " +\
-        "but does not seem correct: " +\
-        "datahome={}, filename={}".format(datahome, filename)
-        if isrelative and not os.getcwd().startswith(datahome):
-            raise ValueError(message1)
-        raise ValueError(message2)
-    elif isrelative:
-        return osp.join(secondary, filename)
-    else:
-        pass # TODO joinpath(secondary, is_windows() ? filename[5:end] : filename[2:end])
-
-
 def get_extent_index(extents, offset):
     i = int(offset / extents[0]['size'])
     return extents[i]
-
-def get_extents(xml, secondaries, filename):
-    """
-    -i- xml : object, parsed XML file
-    -i- secondaries : list, element is string of secondary folder path
-    -i- filename : string, JavaSeis dataset filename
-    """
-    nextents = xml.nr_extents
-    basename = xml.extent_name
-    size = xml.extent_size
-    maxpos = xml.extent_maxpos
-    extents = [None] * nextents
-    for secondary in secondaries:
-        base_extpath = extent_dir(secondary, filename)
-        if osp.isdir(base_extpath):
-            names = get_names(base_extpath, basename)
-            for name in names:
-                i = int(name[len(basename):])
-                if i < nextents:
-                    start = i * size
-                    path = osp.join(base_extpath, name)
-                    extents[i] = extent_dict(name, path, i, start, size)
-
-    # TODO add missing extents (i.e. extents with all empty frames)
-
-    # the last extent might be a different size
-    extent = extents[nextents-1]
-    extent['size'] = maxpos - extent['start']
-
-    return extents
 
 
 def extent_dict(name, path, index, start, size):
     return {'name': name, 'path': path, 'index': index, 'start': start,
             'size': size}
-
-
-def make_extents(nextents, secondaries, filename, axis_lengths,
-    bytes_per_trace, basename):
-    isec, nsec = 0, len(secondaries) - 1
-    total_size = np.prod(axis_lengths[1:]) * bytes_per_trace
-    frames_per_extent = math.ceil(np.prod(axis_lengths[2:]) / nextents)
-    extent_size = frames_per_extent * axis_lengths[1] * bytes_per_trace
-    extents = []
-    for i in range(nextents):
-        name = "{}{}".format(basename, i)
-        path = osp.join(extent_dir(secondaries[isec], filename), name)
-        index = i
-        start = index * extent_size
-        size = min(extent_size, total_size)
-        extents.append(extent_dict(name, path, index, start, size))
-        isec = 0 if isec == nsec else isec + 1
-        total_size -= extent_size
-    return extents
 
 
 def get_names(path, start):
@@ -937,170 +1116,6 @@ def get_names(path, start):
     return names
 
 
-def get_axis_propdefs(trace_headers, axis_labels):
-    axis_propdefs = {}
-    for i, label in enumerate(axis_labels):
-        axis_propdefs[label] = get_axis_propdef(trace_headers, label, i+1)
-    return axis_propdefs
-
-
-def get_axis_propdef(trace_headers, label, dim):
-    # map from JavaSeis axis name to ProMax property label
-    plabel = dictJStoPM[label] if label in dictJStoPM else label
-
-    for key, value in trace_headers.items():
-        if value.label == plabel:
-            return value
-
-    # The sample and trace labels do not need a corresponding trace property.
-    # Therefore, these should be considered valid datasets.
-    if dim == 1 or dim == 2:
-        return TraceHeader(values=(label, label, 'int32', 1, 0))
-
-    raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
-                     "corresponding trace property".format(label))
-
-
-def get_description(filename):
-    with open(filename, 'r') as f:
-        for line in f:
-            if line[0] != '#':
-                line = line.strip()
-                columns = line.split('=')
-                if columns[0] == "DescriptiveName":
-                    return columns[1]
-    return ""
-
-
-def get_status(filename):
-    with open(filename, 'r') as f:
-        for line in f:
-            if line[0] != '#':
-                line = line.strip()
-                columns = line.split('=')
-                if len(columns) < 2:
-                    warnings.warn("Status info (has traces) may be incorrect")
-                    return False
-                if columns[0] == "HasTraces" and columns[1] == 'true':
-                    return True
-    return False
-
-
-def get_trace_properties(ndim, property_defs, property_defs_add,
-    property_defs_rm, axis_propdefs, similar_to):
-    """
-    -i- ndim : int, number of dimensions
-    -i- property_defs : dict
-    -i- property_defs_add : dict
-    -i- property_defs_rm : dict
-    -i- axis_propdefs : dict
-    -i- similar_to : string
-    'defs' is short for 'defaults' or 'defined'.
-    """
-    if similar_to == "":
-        _property_defs = property_defs # need copy.deepcopy?
-        _axis_propdefs = axis_propdefs
-    else:
-        jsd = JavaSeisDataset.open(similar_to, mode='r')
-
-        # special handling for trace properties
-        if len(property_defs) == 0:
-            _property_defs = jsd.properties
-        else:
-            assert len(property_defs_add) == 0
-            assert len(property_defs_rm) == 0
-
-        for key in property_defs_add:
-            if key not in _property_defs:
-                _property_defs[key] = property_defs_add[key]
-        for key in property_defs_rm:
-            if key in _property_defs:
-                _property_defs.pop(key)
-
-        if len(axis_propdefs) == 0:
-            _axis_propdefs = jsd.axis_propdefs
-        else:
-            _axis_propdefs = axis_propdefs
-
-    # initialize trace properties to an empty dictionary
-    #properties = {}
-    properties = odict()
-
-    # trace properties, minimal set (as defined by SeisSpace / ProMAX)
-    if similar_to == "":
-        byte_offset = get_minimal_propset(properties, start_offset=0)
-    else:
-        byte_offset = 0
-
-    # trace properties, user defined
-    for key in _property_defs:
-        if key not in properties:
-            th = _property_defs[key]
-            th.byte_offset = byte_offset
-            properties[key] = th
-            byte_offset += th.size
-
-    # axis properties
-    if len(_axis_propdefs) == 0:
-        th_list = [stock_props['SAMPLE'], stock_props['TRACE'],
-            stock_props['FRAME'], stock_props['VOLUME'],
-            stock_props['HYPRCUBE']][:min(5,ndim)]
-        for idim in range(6, ndim+1):
-            label = "DIM{}".format(idim)
-            description = "dimension {}".format(idim)
-            th = TraceHeader(values=(label, description, "INTEGER", 1, 0))
-            th_list.append(th)
-        for th in th_list: # create dict from list
-            _axis_propdefs[th.label] = th
-
-    for key, th in _axis_propdefs.items():
-        assert th.element_count == 1
-        # map from JavaSeis axis name to ProMax property label
-        if th.label in dictJStoPM:
-            th.label = dictJStoPM[th.label]
-        if th.label not in properties:
-            th.byte_offset = byte_offset
-            properties[th.label] = th
-            byte_offset += th.size
-
-    # sort by label
-    #properties = odict(sorted(properties.items()))
-    # It seems SeisSpace JavaSeis requires trace header entries sorted
-    # by their byte offset in the FileProperties.xml,
-    # thus sort by label does not work.
-
-    return properties, _axis_propdefs
-
-
-def get_minimal_propset(properties, start_offset=0):
-    """
-    -i- properties : dict, get/set minimal trace properties and add to it
-    -i- start_offset : int, start byte offset
-    """
-    byte_offset = start_offset
-    for prop in minimal_props:
-        th = stock_props[prop]
-        th.byte_offset = byte_offset
-        properties[th.label] = th
-        byte_offset += th.size
-    return byte_offset
-
-
-def get_header_length(trace_headers):
-    """
-    -i- trace_headers : dict, element is TraceHeader object
-    """
-    total_bytes = 0
-    for key, th in trace_headers.items():
-        total_bytes += th.format_size
-    return total_bytes
-
-
-def get_nextents(dims, fmt):
-    n = np.prod(dims) * FORMAT_BYTE[fmt] / (2.0 * 1024.0**3) + 10.0
-    return math.ceil(np.clip(n, 1, 256))
-
-
 def make_directory(abspath, force=False):
     if osp.isdir(abspath):
         if force: # delete old and create new
@@ -1110,20 +1125,6 @@ def make_directory(abspath, force=False):
             warnings.warn("Directory already exists: {}".format(abspath))
     else:
         os.mkdir(abspath)
-
-
-def add_child_trace_property(parent, index, trace_header):
-    """
-    -i- parent : lxml.etree.Element or SubElement
-    -i- index : int
-    -i- trace_header : object, TraceHeader
-    """
-    header = etree.SubElement(parent, "parset", name="entry_{}".format(index))
-    add_child_par(header, "label",        "string", " {} ".format(trace_header.label))
-    add_child_par(header, "description",  "string", " \"{}\" ".format(trace_header.description))
-    add_child_par(header, "format",       "string", " {} ".format(trace_header.format))
-    add_child_par(header, "elementCount", "int", " {} ".format(trace_header.element_count))
-    add_child_par(header, "byteOffset",   "int", " {} ".format(trace_header.byte_offset))
 
 
 def format_axes(axes):
