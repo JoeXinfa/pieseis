@@ -504,6 +504,14 @@ class JavaSeisDataset(object):
             f.seek(offset + b1)
             f.write(header_bytes)
 
+    def write_frame(self, trcs, hdrs, fold, iframe):
+        self.write_frame_trcs(trcs, fold, iframe)
+        self.write_frame_hdrs(hdrs, fold, iframe)
+        save_map(self, iframe, fold) # tracemap or foldmap
+        if not self.has_traces and fold > 0:
+            self.has_traces = True
+            write_status_properties(self) # TODO move these into class
+
     def write_frame_hdrs(self, hdrs, fold, iframe):
         """
         -i- hdrs : dict
@@ -556,14 +564,6 @@ class JavaSeisDataset(object):
                 #f.write(trcs) # TODO convert
         else:
             raise ValueError("Unsupported trace format".format(self.data_format))
-
-        # tracemap
-        save_map(self, iframe, fold)
-
-        # status
-        if not self.has_traces and fold > 0:
-            self.has_traces = True
-            write_status_properties(self) # TODO move these into class
 
     def is_open(self):
         return self._is_open

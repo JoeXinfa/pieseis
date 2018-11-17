@@ -53,17 +53,20 @@ print(jsd.trace_length, jsd.header_length)
 headers = {}
 SEQNO = np.zeros(ntrace, dtype='int32')
 TRC_TYPE = np.ones(ntrace, dtype='int32')
+TRACE = np.zeros(ntrace, dtype='int32')
 TFULL_E = 3000.0
 TLIVE_E = 3000.0
 for i in range(ntrace):
     SEQNO[i] = i + 1
+    TRACE[i] = i + 1
 headers["SEQNO"] = SEQNO
 headers["TRC_TYPE"] = TRC_TYPE
 headers["TFULL_E"] = TFULL_E
 headers["TLIVE_E"] = TLIVE_E
+headers["TRACE"] = TRACE
 
 for i in range(1):
     iframe = i + 1
     print('write frame =', iframe)
-    jsd.write_frame_trcs(trcs, fold, iframe)
-    jsd.write_frame_hdrs(headers, fold, iframe)
+    headers["FRAME"] = iframe
+    jsd.write_frame(trcs, headers, fold, iframe)

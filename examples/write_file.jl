@@ -2,7 +2,7 @@
 
 # Run from Julia REPL
 # julia> include("C:/Users/xinfa/Documents/code/pieseis/examples/write_file.jl")
-# RUn from command line (Linux terminal or Windows command prompt)
+# Run from command line (Linux terminal or Windows command prompt)
 # C:\Users\xinfa\AppData\Local\Julia-1.0.1\bin\julia.exe C:\Users\xinfa\Documents\code\pieseis\examples\write_file.jl
 
 println("start")
