@@ -110,7 +110,7 @@ class JavaSeisDataset(object):
     def open(cls, filename,
         mode                = "r",
         description         = "",
-        mapped              = None,
+        is_mapped           = None,
         data_type           = None,
         data_format         = None,
         data_order          = None,
@@ -177,7 +177,7 @@ class JavaSeisDataset(object):
             filename = osp.join(jsd.path, JS_NAME_FILE)
             jsd.description = get_description(filename)
 
-            jsd.mapped          = jsd._file_properties.is_mapped()
+            jsd.is_mapped       = jsd._file_properties.is_mapped
             jsd.data_type       = jsd._file_properties.data_type
             jsd.data_format     = _data_format
             jsd.data_order      = jsd._file_properties.byte_order
@@ -217,7 +217,7 @@ class JavaSeisDataset(object):
             pass # TODO remote dataset for overwrite?
 
         if mode == 'w' and similar_to == "":
-            jsd.mapped          = True if mapped is None else mapped
+            jsd.is_mapped       = True if is_mapped is None else is_mapped
             jsd.data_type       = stock_dtype['CUSTOM'] if data_type is None else data_type
             jsd.data_format     = _data_format
             jsd.data_order      = "LITTLE_ENDIAN" if data_order is None else data_order
@@ -249,7 +249,7 @@ class JavaSeisDataset(object):
                     if prop not in data_properties:
                         data_properties.append(prop)
 
-            jsd.mapped          = jsdsim.mapped if mapped is None else mapped
+            jsd.is_mapped       = jsdsim.is_mapped if is_mapped is None else is_mapped
             jsd.data_type       = jsdsim.data_type if data_type is None else data_type
             jsd.data_format     = _data_format
             jsd.data_order      = jsdsim.data_order if data_order is None else data_order
@@ -625,7 +625,7 @@ class JavaSeisDataset(object):
         self._hdr_extents = get_extents(xml, secondaries, filename)
 
     def _get_fold(self, iframe):
-        if not self.mapped:
+        if not self.is_mapped:
             return self.axis_lengths[1]
         self._read_map(iframe)
         index = get_map_position(self, iframe)
@@ -682,7 +682,7 @@ class JSFileReader(object):
 
         # TODO: Use scipy / numpy to read the binary data?
 
-        if self._js_dataset.file_properties.is_mapped():
+        if self._js_dataset.file_properties.is_mapped:
             # read TraceMap and check whether it contains a
             # value that differs from m_numTraces.
             # If so, then it is not regular, otherwise regular
@@ -1075,7 +1075,7 @@ def create_map(jsd):
 
 
 def save_map(jsd, iframe, fold):
-    if jsd.mapped:
+    if jsd.is_mapped:
         if get_volume_index(jsd, iframe) == jsd.current_volume:
             jsd.map[get_map_position(jsd, iframe)] = np.int32(fold)
         position = (iframe - 1) * np.int32().itemsize
@@ -1108,7 +1108,7 @@ def write_file_properties(jsd):
     add_child_par(fps, "DataType",          "string",  " {} ".format(jsd.data_type))
     add_child_par(fps, "TraceFormat",       "string",  " {} ".format(DATA_FORMAT_TO_TRACE_FORMAT[jsd.data_format]))
     add_child_par(fps, "ByteOrder",         "string",  " {} ".format(jsd.data_order))
-    add_child_par(fps, "Mapped",            "boolean", " {} ".format(str(jsd.mapped).lower()))
+    add_child_par(fps, "Mapped",            "boolean", " {} ".format(str(jsd.is_mapped).lower()))
     add_child_par(fps, "DataDimensions",    "int",     " {} ".format(len(jsd.axis_lengths)))
     add_child_par(fps, "AxisLabels",        "string",  format_axes(axis_labels))
     add_child_par(fps, "AxisUnits",         "string",  format_axes(jsd.axis_units))

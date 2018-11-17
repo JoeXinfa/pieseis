@@ -239,6 +239,7 @@ class FileProperties(Properties):
     def get_logical_origin(self, dimension):
         return self.get_logical_origins()[dimension]
 
+    @property
     def is_mapped(self):
         value = self._attributes['Mapped']
         return value.get('value')
