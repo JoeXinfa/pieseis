@@ -17,7 +17,6 @@ import numpy as np
 
 from .properties import (FileProperties, TraceProperties, CustomProperties,
     VirtualFolders, TraceFileXML, TraceHeadersXML, TraceHeader)
-from .defs import GridDefinition
 from .trace_compressor import (get_trace_compressor, get_trace_length,
     unpack_frame, pack_frame)
 from .compat import dictJStoPM, dictPMtoJS
@@ -329,14 +328,14 @@ class JavaSeisDataset(object):
         jsd.map = np.zeros(jsd.axis_lengths[2], dtype='int32')
 
         # create the various xml files and directories
-        make_primary_dir(jsd)
-        make_extent_dirs(jsd)
-        create_map(jsd)
-        write_file_properties(jsd)
-        write_name_properties(jsd)
-        write_status_properties(jsd)
-        write_extent_manager(jsd)
-        write_virtual_folders(jsd)
+        jsd.make_primary_dir()
+        jsd.make_extent_dirs()
+        jsd.create_map()
+        jsd.write_file_properties()
+        jsd.write_name_properties()
+        jsd.write_status_properties()
+        jsd.write_extent_manager()
+        jsd.write_virtual_folders()
 
     @staticmethod
     def _validate_js_dir(path):
@@ -509,10 +508,10 @@ class JavaSeisDataset(object):
     def write_frame(self, trcs, hdrs, fold, iframe):
         self.write_frame_trcs(trcs, fold, iframe)
         self.write_frame_hdrs(hdrs, fold, iframe)
-        save_map(self, iframe, fold) # tracemap or foldmap
+        self.save_map(iframe, fold) # tracemap or foldmap
         if not self.has_traces and fold > 0:
             self.has_traces = True
-            write_status_properties(self) # TODO move these into class
+            self.write_status_properties()
 
     def write_frame_hdrs(self, hdrs, fold, iframe):
         """
@@ -629,11 +628,11 @@ class JavaSeisDataset(object):
         if not self.is_mapped:
             return self.axis_lengths[1]
         self._read_map(iframe)
-        index = get_map_position(self, iframe)
+        index = self.get_map_position(iframe)
         return self.map[index]
 
     def _read_map(self, iframe):
-        vol = get_volume_index(self, iframe)
+        vol = self.get_volume_index(iframe)
         if vol == self.current_volume:
             return
         nframe = self.axis_lengths[2]
@@ -671,6 +670,157 @@ class JavaSeisDataset(object):
     @property
     def total_nframe(self):
         return np.prod(self.axis_lengths[2:])
+
+    def create_map(self):
+        fn = osp.join(self.filename, JS_TRACE_MAP)
+        nframes = np.prod(self.axis_lengths[2:])
+        array = np.zeros(nframes, dtype='int32')
+        with open(fn, 'wb') as f:
+            array.tofile(f)
+
+    def save_map(self, iframe, fold):
+        if self.is_mapped:
+            if self.get_volume_index(iframe) == self.current_volume:
+                self.map[self.get_map_position(iframe)] = np.int32(fold)
+            position = (iframe - 1) * np.int32().itemsize
+            fn = osp.join(self.filename, JS_TRACE_MAP)
+            with open(fn, 'r+b') as f:
+                f.seek(position)
+                f.write(np.int32(fold)) # no need to pack?
+
+    def get_volume_index(self, iframe):
+        return int((iframe - 1) / self.axis_lengths[2]) + 1
+
+    def get_map_position(self, iframe):
+        return iframe - (self.get_volume_index(iframe) - 1) * self.axis_lengths[2]
+
+    def write_extent_manager(self):
+        nb = np.prod(self.axis_lengths[1:]) * self.trace_length - 1
+        root = etree.Element("parset", name="ExtentManager")
+        add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
+        add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(self.trc_extents[0]['size']))
+        add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(self.trc_extents)))
+        add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
+        add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_DATA))
+        add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
+        fn = osp.join(self.filename, JS_TRACE_DATA_XML)
+        write_etree_to_file(fn, root)
+
+        nb = np.prod(self.axis_lengths[1:]) * self.header_length - 1
+        root = etree.Element("parset", name="ExtentManager")
+        add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
+        add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(self.hdr_extents[0]['size']))
+        add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(self.hdr_extents)))
+        add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
+        add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_HEADERS))
+        add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
+        fn = osp.join(self.filename, JS_TRACE_HEADERS_XML)
+        write_etree_to_file(fn, root)
+
+    def write_name_properties(self):
+        fn = osp.join(self.filename, JS_NAME_FILE)
+        with open(fn, 'w') as f:
+            f.writelines("#{}\n".format(JS_COMMENT))
+            f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
+            f.writelines("DescriptiveName={}\n".format(self.description))
+
+    def write_status_properties(self):
+        fn = osp.join(self.filename, JS_STATUS_FILE)
+        with open(fn, 'w') as f:
+            f.writelines("#{}\n".format(JS_COMMENT))
+            f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
+            f.writelines("HasTraces={}\n".format(str(self.has_traces).lower()))
+
+    def write_virtual_folders(self):
+        root = etree.Element("parset", name=JS_VIRTUAL_FOLDERS)
+        add_child_par(root, "NDIR", "int", " {} ".format(len(self.secondaries)))
+        for i in range(len(self.secondaries)):
+            value = " {},READ_WRITE ".format(self.secondaries[i])
+            add_child_par(root, "FILESYSTEM-{}".format(i), "string", value)
+        add_child_par(root, "Version",   "string", " 2006.2 ")
+        add_child_par(root, "Header",    "string", " \"VFIO org.javaseis.VirtualFolder 2006.2\" ")
+        add_child_par(root, "Type",      "string", " SS ")
+        add_child_par(root, "POLICY_ID", "string", " RANDOM ")
+        nb = self.axis_lengths[0] * FORMAT_BYTE[self.data_format] + self.header_length
+        nb *=  np.prod(self.axis_lengths[1:])
+        add_child_par(root, "GLOBAL_REQUIRED_FREE_SPACE", "long", " {} ".format(nb))
+        fn = osp.join(self.filename, JS_VIRTUAL_FOLDERS_XML)
+        write_etree_to_file(fn, root)
+
+    def write_file_properties(self):
+        root = etree.Element("parset", name="JavaSeis Metadata")
+        fps = etree.SubElement(root, "parset", name=JS_FILE_PROPERTIES)
+
+        # translate ProMax property labels to JavaSeis axis labels
+        axis_labels = []
+        for key in self.axis_propdefs:
+            label = dictPMtoJS[key] if key in dictPMtoJS else key
+            axis_labels.append(label)
+
+        add_child_par(fps, "Comments",          "string", " \"{}\" ".format(JS_COMMENT))
+        add_child_par(fps, "JavaSeisVersion",   "string", " 2006.3 ")
+        add_child_par(fps, "DataType",          "string",  " {} ".format(self.data_type))
+        add_child_par(fps, "TraceFormat",       "string",  " {} ".format(DATA_FORMAT_TO_TRACE_FORMAT[self.data_format]))
+        add_child_par(fps, "ByteOrder",         "string",  " {} ".format(self.data_order))
+        add_child_par(fps, "Mapped",            "boolean", " {} ".format(str(self.is_mapped).lower()))
+        add_child_par(fps, "DataDimensions",    "int",     " {} ".format(len(self.axis_lengths)))
+        add_child_par(fps, "AxisLabels",        "string",  format_axes(axis_labels))
+        add_child_par(fps, "AxisUnits",         "string",  format_axes(self.axis_units))
+        add_child_par(fps, "AxisDomains",       "string",  format_axes(self.axis_domains))
+        add_child_par(fps, "AxisLengths",       "long",    format_axes(self.axis_lengths))
+        add_child_par(fps, "LogicalOrigins",    "long",    format_axes(self.axis_lstarts))
+        add_child_par(fps, "LogicalDeltas",     "long",    format_axes(self.axis_lincs))
+        add_child_par(fps, "PhysicalOrigins",   "double",  format_axes(self.axis_pstarts))
+        add_child_par(fps, "PhysicalDeltas",    "double",  format_axes(self.axis_pincs))
+        add_child_par(fps, "HeaderLengthBytes", "int",     " {} ".format(self.header_length))
+
+        # trace properties
+        tps = etree.SubElement(root, "parset", name="TraceProperties")
+        i = 0
+        for key, th in self.properties.items():
+            add_child_trace_property(tps, i, th)
+            i += 1
+
+        # custom properties
+        cps = etree.SubElement(root, "parset", name="CustomProperties")
+        for prop in self.data_properties:
+            add_child_par(cps, prop.label, prop.format, " {} ".format(prop.value))
+            # TODO need test if SeisSpace can load the Stacked = "True"
+
+        # 3-point geometry
+        if self.geom is not None:
+            geometry = etree.SubElement(cps, "parset", name="Geometry")
+            add_child_par(geometry, "u1", "long",   " {} ".format(self.geom.u1))
+            add_child_par(geometry, "un", "long",   " {} ".format(self.geom.un))
+            add_child_par(geometry, "v1", "long",   " {} ".format(self.geom.v1))
+            add_child_par(geometry, "vn", "long",   " {} ".format(self.geom.vn))
+            add_child_par(geometry, "w1", "long",   " {} ".format(self.geom.w1))
+            add_child_par(geometry, "wn", "long",   " {} ".format(self.geom.wn))
+            add_child_par(geometry, "ox", "double", " {} ".format(self.geom.ox))
+            add_child_par(geometry, "oy", "double", " {} ".format(self.geom.oy))
+            add_child_par(geometry, "oz", "double", " {} ".format(self.geom.oz))
+            add_child_par(geometry, "ux", "double", " {} ".format(self.geom.ux))
+            add_child_par(geometry, "uy", "double", " {} ".format(self.geom.uy))
+            add_child_par(geometry, "uz", "double", " {} ".format(self.geom.uz))
+            add_child_par(geometry, "vx", "double", " {} ".format(self.geom.vx))
+            add_child_par(geometry, "vy", "double", " {} ".format(self.geom.vy))
+            add_child_par(geometry, "vz", "double", " {} ".format(self.geom.vz))
+            add_child_par(geometry, "wx", "double", " {} ".format(self.geom.wx))
+            add_child_par(geometry, "wy", "double", " {} ".format(self.geom.wy))
+            add_child_par(geometry, "wz", "double", " {} ".format(self.geom.wz))
+
+        fn = osp.join(self.filename, JS_FILE_PROPERTIES_XML)
+        write_etree_to_file(fn, root)
+
+    def make_primary_dir(self):
+        make_directory(self.filename)
+
+    def make_extent_dirs(self):
+        for path in self.secondaries:
+            extpath = extent_dir(path, self.filename)
+            #if extpath != self.filename: # C:Usersjoe vs C:/Users/joe
+            if osp.normpath(extpath) != osp.normpath(self.filename):
+                make_directory(extpath)
 
 # TODO
 # read/write in parallel with multi thread
@@ -962,111 +1112,6 @@ def make_directory(abspath, force=False):
         os.mkdir(abspath)
 
 
-def make_primary_dir(jsd):
-    make_directory(jsd.filename)
-
-
-def make_extent_dirs(jsd):
-    for path in jsd.secondaries:
-        extpath = extent_dir(path, jsd.filename)
-        #if extpath != jsd.filename: # C:\Users\joe vs C:/Users/joe
-        if osp.normpath(extpath) != osp.normpath(jsd.filename):
-            make_directory(extpath)
-
-
-def create_map(jsd):
-    fn = osp.join(jsd.filename, JS_TRACE_MAP)
-    nframes = np.prod(jsd.axis_lengths[2:])
-    array = np.zeros(nframes, dtype='int32')
-    with open(fn, 'wb') as f:
-        array.tofile(f)
-
-
-def save_map(jsd, iframe, fold):
-    if jsd.is_mapped:
-        if get_volume_index(jsd, iframe) == jsd.current_volume:
-            jsd.map[get_map_position(jsd, iframe)] = np.int32(fold)
-        position = (iframe - 1) * np.int32().itemsize
-        fn = osp.join(jsd.filename, JS_TRACE_MAP)
-        with open(fn, 'r+b') as f:
-            f.seek(position)
-            f.write(np.int32(fold)) # no need to pack?
-
-
-def get_volume_index(jsd, iframe):
-    return int((iframe - 1) / jsd.axis_lengths[2]) + 1
-
-
-def get_map_position(jsd, iframe):
-    return iframe - (get_volume_index(jsd, iframe) - 1) * jsd.axis_lengths[2]
-
-
-def write_file_properties(jsd):
-    root = etree.Element("parset", name="JavaSeis Metadata")
-    fps = etree.SubElement(root, "parset", name=JS_FILE_PROPERTIES)
-
-    # translate ProMax property labels to JavaSeis axis labels
-    axis_labels = []
-    for key in jsd.axis_propdefs:
-        label = dictPMtoJS[key] if key in dictPMtoJS else key
-        axis_labels.append(label)
-
-    add_child_par(fps, "Comments",          "string", " \"{}\" ".format(JS_COMMENT))
-    add_child_par(fps, "JavaSeisVersion",   "string", " 2006.3 ")
-    add_child_par(fps, "DataType",          "string",  " {} ".format(jsd.data_type))
-    add_child_par(fps, "TraceFormat",       "string",  " {} ".format(DATA_FORMAT_TO_TRACE_FORMAT[jsd.data_format]))
-    add_child_par(fps, "ByteOrder",         "string",  " {} ".format(jsd.data_order))
-    add_child_par(fps, "Mapped",            "boolean", " {} ".format(str(jsd.is_mapped).lower()))
-    add_child_par(fps, "DataDimensions",    "int",     " {} ".format(len(jsd.axis_lengths)))
-    add_child_par(fps, "AxisLabels",        "string",  format_axes(axis_labels))
-    add_child_par(fps, "AxisUnits",         "string",  format_axes(jsd.axis_units))
-    add_child_par(fps, "AxisDomains",       "string",  format_axes(jsd.axis_domains))
-    add_child_par(fps, "AxisLengths",       "long",    format_axes(jsd.axis_lengths))
-    add_child_par(fps, "LogicalOrigins",    "long",    format_axes(jsd.axis_lstarts))
-    add_child_par(fps, "LogicalDeltas",     "long",    format_axes(jsd.axis_lincs))
-    add_child_par(fps, "PhysicalOrigins",   "double",  format_axes(jsd.axis_pstarts))
-    add_child_par(fps, "PhysicalDeltas",    "double",  format_axes(jsd.axis_pincs))
-    add_child_par(fps, "HeaderLengthBytes", "int",     " {} ".format(jsd.header_length))
-
-    # trace properties
-    tps = etree.SubElement(root, "parset", name="TraceProperties")
-    i = 0
-    for key, th in jsd.properties.items():
-        add_child_trace_property(tps, i, th)
-        i += 1
-
-    # custom properties
-    cps = etree.SubElement(root, "parset", name="CustomProperties")
-    for prop in jsd.data_properties:
-        add_child_par(cps, prop.label, prop.format, " {} ".format(prop.value))
-        # TODO need test if SeisSpace can load the Stacked = "True"
-
-    # 3-point geometry
-    if jsd.geom is not None:
-        geometry = etree.SubElement(cps, "parset", name="Geometry")
-        add_child_par(geometry, "u1", "long",   " {} ".format(jsd.geom.u1))
-        add_child_par(geometry, "un", "long",   " {} ".format(jsd.geom.un))
-        add_child_par(geometry, "v1", "long",   " {} ".format(jsd.geom.v1))
-        add_child_par(geometry, "vn", "long",   " {} ".format(jsd.geom.vn))
-        add_child_par(geometry, "w1", "long",   " {} ".format(jsd.geom.w1))
-        add_child_par(geometry, "wn", "long",   " {} ".format(jsd.geom.wn))
-        add_child_par(geometry, "ox", "double", " {} ".format(jsd.geom.ox))
-        add_child_par(geometry, "oy", "double", " {} ".format(jsd.geom.oy))
-        add_child_par(geometry, "oz", "double", " {} ".format(jsd.geom.oz))
-        add_child_par(geometry, "ux", "double", " {} ".format(jsd.geom.ux))
-        add_child_par(geometry, "uy", "double", " {} ".format(jsd.geom.uy))
-        add_child_par(geometry, "uz", "double", " {} ".format(jsd.geom.uz))
-        add_child_par(geometry, "vx", "double", " {} ".format(jsd.geom.vx))
-        add_child_par(geometry, "vy", "double", " {} ".format(jsd.geom.vy))
-        add_child_par(geometry, "vz", "double", " {} ".format(jsd.geom.vz))
-        add_child_par(geometry, "wx", "double", " {} ".format(jsd.geom.wx))
-        add_child_par(geometry, "wy", "double", " {} ".format(jsd.geom.wy))
-        add_child_par(geometry, "wz", "double", " {} ".format(jsd.geom.wz))
-
-    fn = osp.join(jsd.filename, JS_FILE_PROPERTIES_XML)
-    write_etree_to_file(fn, root)
-
-
 def add_child_trace_property(parent, index, trace_header):
     """
     -i- parent : lxml.etree.Element or SubElement
@@ -1094,23 +1139,6 @@ def format_axes(axes):
     return labels
 
 
-def write_virtual_folders(jsd):
-    root = etree.Element("parset", name=JS_VIRTUAL_FOLDERS)
-    add_child_par(root, "NDIR", "int", " {} ".format(len(jsd.secondaries)))
-    for i in range(len(jsd.secondaries)):
-        value = " {},READ_WRITE ".format(jsd.secondaries[i])
-        add_child_par(root, "FILESYSTEM-{}".format(i), "string", value)
-    add_child_par(root, "Version",   "string", " 2006.2 ")
-    add_child_par(root, "Header",    "string", " \"VFIO org.javaseis.VirtualFolder 2006.2\" ")
-    add_child_par(root, "Type",      "string", " SS ")
-    add_child_par(root, "POLICY_ID", "string", " RANDOM ")
-    nb = jsd.axis_lengths[0] * FORMAT_BYTE[jsd.data_format] + jsd.header_length
-    nb *=  np.prod(jsd.axis_lengths[1:])
-    add_child_par(root, "GLOBAL_REQUIRED_FREE_SPACE", "long", " {} ".format(nb))
-    fn = osp.join(jsd.filename, JS_VIRTUAL_FOLDERS_XML)
-    write_etree_to_file(fn, root)
-
-
 def write_etree_to_file(fn, root):
     """
     -i- root : lxml.etree.Element
@@ -1132,48 +1160,8 @@ def add_child_par(parent, name, fmt, value):
     child.text = value
 
 
-def write_name_properties(jsd):
-    fn = osp.join(jsd.filename, JS_NAME_FILE)
-    with open(fn, 'w') as f:
-        f.writelines("#{}\n".format(JS_COMMENT))
-        f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
-        f.writelines("DescriptiveName={}\n".format(jsd.description))
-
-
-def write_status_properties(jsd):
-    fn = osp.join(jsd.filename, JS_STATUS_FILE)
-    with open(fn, 'w') as f:
-        f.writelines("#{}\n".format(JS_COMMENT))
-        f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
-        f.writelines("HasTraces={}\n".format(str(jsd.has_traces).lower()))
-
-
-def write_extent_manager(jsd):
-    nb = np.prod(jsd.axis_lengths[1:]) * jsd.trace_length - 1
-    root = etree.Element("parset", name="ExtentManager")
-    add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
-    add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.trc_extents[0]['size']))
-    add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(jsd.trc_extents)))
-    add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
-    add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_DATA))
-    add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
-    fn = osp.join(jsd.filename, JS_TRACE_DATA_XML)
-    write_etree_to_file(fn, root)
-
-    nb = np.prod(jsd.axis_lengths[1:]) * jsd.header_length - 1
-    root = etree.Element("parset", name="ExtentManager")
-    add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
-    add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.hdr_extents[0]['size']))
-    add_child_par(root, "VFIO_MAXFILE", "int",    " {} ".format(len(jsd.hdr_extents)))
-    add_child_par(root, "VFIO_MAXPOS",  "long",   " {} ".format(nb))
-    add_child_par(root, "VFIO_EXTNAME", "string", " {} ".format(JS_TRACE_HEADERS))
-    add_child_par(root, "VFIO_POLICY",  "string", " RANDOM ")
-    fn = osp.join(jsd.filename, JS_TRACE_HEADERS_XML)
-    write_etree_to_file(fn, root)
-
-
 if __name__ == '__main__':
-    testpath = "/home/zhuu/datasets/test.js"
+    testpath = "/home/zhu/datasets/test.js"
     if not osp.exists(testpath):
         print("'{0}' dataset does not exists".format(testpath))
     jsDataset = JavaSeisDataset(testpath)
