@@ -42,7 +42,6 @@ fold = 101
 #print('trcs1 =', trcs[0, :])
 #print('trcs =', trcs.shape)
 
-import struct
 import numpy as np
 trcs = np.ones((101, 101))
 
@@ -50,34 +49,21 @@ filename = 'C:/Users/xinfa/Documents/181115_test.js'
 jsd = jsfile.JavaSeisDataset.open(filename, 'w', axis_lengths=[nsample, ntrace, nframe])
 print(jsd.trace_length, jsd.header_length)
 
+# prepare header data
+headers = {}
+SEQNO = np.zeros(ntrace, dtype='int32')
+TRC_TYPE = np.ones(ntrace, dtype='int32')
+TFULL_E = 3000.0
+TLIVE_E = 3000.0
+for i in range(ntrace):
+    SEQNO[i] = i + 1
+headers["SEQNO"] = SEQNO
+headers["TRC_TYPE"] = TRC_TYPE
+headers["TFULL_E"] = TFULL_E
+headers["TLIVE_E"] = TLIVE_E
+
 for i in range(1):
     iframe = i + 1
     print('write frame =', iframe)
     jsd.write_frame_trcs(trcs, fold, iframe)
-
-    buffer = bytearray(jsd.header_length*ntrace)
-    for j in range(ntrace):
-        itrace = j + 1
-        trace_offset = jsd.header_length * j
-
-        for header, th in jsd.properties.items():
-            value = 0.0
-            if header == "SEQNO":
-                value = itrace
-            if header == "TRC_TYPE":
-                value = 1
-            if header == "TFULL_E":
-                value = 3000.0
-            if header == "TLIVE_E":
-                value = 3000.0
-            if header == "TRACE":
-                value = itrace
-            if header == "FRAME":
-                value = iframe
-            value = th.cast_value(value)
-
-            offset = trace_offset + th._byte_offset
-            fmt = jsd.data_order_char + th._format_char
-            struct.pack_into(fmt, buffer, offset, value)
-
-    jsd.write_frame_hdrs(buffer, ntrace, iframe)
+    jsd.write_frame_hdrs(headers, fold, iframe)

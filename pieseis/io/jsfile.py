@@ -505,6 +505,31 @@ class JavaSeisDataset(object):
             f.write(header_bytes)
 
     def write_frame_hdrs(self, hdrs, fold, iframe):
+        """
+        -i- hdrs : dict
+        -i- fold : int
+        -i- iframe : int
+        """
+        buffer = bytearray(self.header_length*fold)
+        for i in range(fold):
+            trace_offset = self.header_length * i
+            for header, th in self.properties.items():
+                value = 0.0
+                if header in hdrs:
+                    values = hdrs[header]
+                    value = values[i] if isinstance(values, np.ndarray) else values
+                value = th.cast_value(value)
+                offset = trace_offset + th._byte_offset
+                fmt = self.data_order_char + th._format_char
+                struct.pack_into(fmt, buffer, offset, value)
+        self._write_frame_hdrs(buffer, fold, iframe)
+
+    def _write_frame_hdrs(self, buffer, fold, iframe):
+        """
+        -i- buffer : bytearray
+        -i- fold : int
+        -i- iframe : int
+        """
         frame_size = self.header_length * self.axis_lengths[1]
         offset = (iframe - 1) * frame_size
         extent = get_extent_index(self.hdr_extents, offset)
@@ -513,7 +538,7 @@ class JavaSeisDataset(object):
         mode = "r+b" if osp.isfile(filename) else "wb"
         with open(filename, mode) as f:
             f.seek(offset)
-            f.write(hdrs)
+            f.write(buffer)
 
     def write_frame_trcs(self, trcs, fold, iframe):
         frame_size = self.trace_length * self.axis_lengths[1]
