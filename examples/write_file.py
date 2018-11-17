@@ -50,7 +50,7 @@ filename = 'C:/Users/xinfa/Documents/181115_test.js'
 jsd = jsfile.JavaSeisDataset.open(filename, 'w', axis_lengths=[nsample, ntrace, nframe])
 print(jsd.trace_length, jsd.header_length)
 
-for i in range(nframe):
+for i in range(1):
     iframe = i + 1
     print('write frame =', iframe)
     jsd.write_frame_trcs(trcs, fold, iframe)

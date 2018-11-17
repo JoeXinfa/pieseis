@@ -7,6 +7,7 @@ import shutil
 import pytz
 from datetime import datetime
 import collections
+from collections import OrderedDict as odict
 
 # TODO python collections.namedtuple check it out and
 # compare with julia NamedTuple as used in TeaSeis.jl
@@ -114,7 +115,7 @@ class JavaSeisDataset(object):
         data_format         = None,
         data_order          = None,
         axis_lengths        = [],
-        axis_propdefs       = {},
+        axis_propdefs       = odict(),
         axis_units          = [],
         axis_domains        = [],
         axis_lstarts        = [],
@@ -122,13 +123,13 @@ class JavaSeisDataset(object):
         axis_pstarts        = [],
         axis_pincs          = [],
         data_properties     = [],
-        properties          = {},
+        properties          = odict(),
         geometry            = None,
         secondaries         = None,
         nextents            = 0,
         similar_to          = "",
-        properties_add      = {},
-        properties_rm       = {},
+        properties_add      = odict(),
+        properties_rm       = odict(),
         data_properties_add = [],
         data_properties_rm  = []):
         """
@@ -525,6 +526,10 @@ class JavaSeisDataset(object):
         else:
             raise ValueError("Unsupported trace format".format(self.data_format))
 
+        if not self.has_traces and fold > 0:
+            self.has_traces = True
+            write_status_properties(self) # TODO move these into class
+
     def is_open(self):
         return self._is_open
 
@@ -904,7 +909,8 @@ def get_trace_properties(ndim, property_defs, property_defs_add,
             _axis_propdefs = axis_propdefs
 
     # initialize trace properties to an empty dictionary
-    properties = {}
+    #properties = {}
+    properties = odict()
 
     # trace properties, minimal set (as defined by SeisSpace / ProMAX)
     if similar_to == "":
@@ -944,7 +950,10 @@ def get_trace_properties(ndim, property_defs, property_defs_add,
             byte_offset += th.size
 
     # sort by label
-    properties = collections.OrderedDict(sorted(properties.items()))
+    #properties = odict(sorted(properties.items()))
+    # It seems SeisSpace JavaSeis requires trace header entries sorted
+    # by their byte offset in the FileProperties.xml,
+    # thus sort by label does not work.
 
     return properties, _axis_propdefs
 
@@ -1006,7 +1015,7 @@ def create_map(jsd):
     nframes = np.prod(jsd.axis_lengths[2:])
     array = np.zeros(nframes, dtype='int32')
     with open(fn, 'wb') as f:
-        array.tofile(f) # TODO need test by read
+        array.tofile(f)
 
 
 def write_file_properties(jsd):
@@ -1153,11 +1162,11 @@ def write_status_properties(jsd):
     with open(fn, 'w') as f:
         f.writelines("#{}\n".format(JS_COMMENT))
         f.writelines("#UTC {}\n".format(datetime.now(pytz.utc)))
-        f.writelines("HasTraces={}\n".format(jsd.has_traces))
+        f.writelines("HasTraces={}\n".format(str(jsd.has_traces).lower()))
 
 
 def write_extent_manager(jsd):
-    nb = np.prod(jsd.axis_lengths[1:]) * jsd.trace_length # minus 1 or not?
+    nb = np.prod(jsd.axis_lengths[1:]) * jsd.trace_length - 1
     root = etree.Element("parset", name="ExtentManager")
     add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
     add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.trc_extents[0]['size']))
@@ -1168,7 +1177,7 @@ def write_extent_manager(jsd):
     fn = osp.join(jsd.filename, JS_TRACE_DATA_XML)
     write_etree_to_file(fn, root)
 
-    nb = np.prod(jsd.axis_lengths[1:]) * jsd.header_length # minus 1 or not?
+    nb = np.prod(jsd.axis_lengths[1:]) * jsd.header_length - 1
     root = etree.Element("parset", name="ExtentManager")
     add_child_par(root, "VFIO_VERSION", "string", " 2006.2 ")
     add_child_par(root, "VFIO_EXTSIZE", "long",   " {} ".format(jsd.hdr_extents[0]['size']))
