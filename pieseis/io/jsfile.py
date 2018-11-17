@@ -526,6 +526,10 @@ class JavaSeisDataset(object):
         else:
             raise ValueError("Unsupported trace format".format(self.data_format))
 
+        # tracemap
+        save_map(self, iframe, fold)
+
+        # status
         if not self.has_traces and fold > 0:
             self.has_traces = True
             write_status_properties(self) # TODO move these into class
@@ -1016,6 +1020,25 @@ def create_map(jsd):
     array = np.zeros(nframes, dtype='int32')
     with open(fn, 'wb') as f:
         array.tofile(f)
+
+
+def save_map(jsd, iframe, fold):
+    if jsd.mapped:
+        if get_volume_index(jsd, iframe) == jsd.current_volume:
+            jsd.map[get_map_position(jsd, iframe)] = np.int32(fold)
+        position = (iframe - 1) * np.int32().itemsize
+        fn = osp.join(jsd.filename, JS_TRACE_MAP)
+        with open(fn, 'r+b') as f:
+            f.seek(position)
+            f.write(np.int32(fold)) # no need to pack?
+
+
+def get_volume_index(jsd, iframe):
+    return int((iframe - 1) / jsd.axis_lengths[2]) + 1
+
+
+def get_map_position(jsd, iframe):
+    return iframe - (get_volume_index(jsd, iframe) - 1) * jsd.axis_lengths[2]
 
 
 def write_file_properties(jsd):
