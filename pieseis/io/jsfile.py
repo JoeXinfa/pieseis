@@ -191,6 +191,7 @@ class JavaSeisDataset(object):
             jsd.axis_pincs      = jsd._file_properties.physical_deltas
             jsd.data_properties = jsd._custom_properties.data_properties
             jsd.geom            = None
+            jsd.is_regular      = True
 
             jsd.has_traces = False
             filename = osp.join(jsd.path, JS_STATUS_FILE)
@@ -644,6 +645,32 @@ class JavaSeisDataset(object):
             buffer = f.read(nframe * 4)
             self.map = np.array(struct.unpack(fmt, buffer), dtype='int32')
         self.current_volume = vol
+
+    def _calc_total_ntrace_live(self):
+        if self.is_mapped:
+            total_ntrace_live = 0
+            nframe = self.total_nframe
+            fmt = "{}i".format(nframe)
+            fn = osp.join(self.filename, JS_TRACE_MAP)
+            with open(fn, 'rb') as f:
+                buffer = f.read(nframe * 4)
+                folds = struct.unpack(fmt, buffer)
+            for fold in folds:
+                total_ntrace_live += fold
+                if fold != self.axis_lengths[1]:
+                    self.is_regular = False
+        else:
+            total_ntrace_live = self.total_ntrace
+        return total_ntrace_live
+
+    @property
+    def total_ntrace(self):
+        ntrace = self.axis_lengths[1]
+        return ntrace * self.total_nframe
+
+    @property
+    def total_nframe(self):
+        return np.prod(self.axis_lengths[2:])
 
 # TODO
 # read/write in parallel with multi thread
