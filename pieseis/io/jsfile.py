@@ -412,6 +412,7 @@ class JavaSeisDataset(object):
         -i- iframe : int, index of frame, range is [1, nframe]
         -o- trcs : array, float32, shape (ntrace, nsample)
         """
+        assert self.mode != 'w'
         fold = self._get_fold(iframe)
         if fold == 0:
             return 0
@@ -624,8 +625,28 @@ class JavaSeisDataset(object):
         self._hdr_extents = get_extents(xml, secondaries, filename)
 
     def _get_fold(self, iframe):
-        # TODO read TraceMap
-        return self._file_properties.axis_lengths[1]
+        if not self.mapped:
+            return self.axis_lengths[1]
+        self._read_map(iframe)
+        index = get_map_position(self, iframe)
+        return self.map[index]
+
+    def _read_map(self, iframe):
+        vol = get_volume_index(self, iframe)
+        if vol == self.current_volume:
+            return
+        nframe = self.axis_lengths[2]
+        position = (vol - 1) * nframe * 4
+        fmt = "{}i".format(nframe)
+        fn = osp.join(self.filename, JS_TRACE_MAP)
+        with open(fn, 'rb') as f:
+            f.seek(position)
+            buffer = f.read(nframe * 4)
+            self.map = np.array(struct.unpack(fmt, buffer), dtype='int32')
+        self.current_volume = vol
+
+# TODO
+# read/write in parallel with multi thread
 
 
 class JSFileReader(object):
