@@ -706,7 +706,7 @@ class JavaSeisDataset(object):
         return int((iframe - 1) / self.axis_lengths[2]) + 1
 
     def get_map_position(self, iframe):
-        return iframe - (self.get_volume_index(iframe) - 1) * self.axis_lengths[2]
+        return iframe - (self.get_volume_index(iframe) - 1) * self.axis_lengths[2] - 1
 
     def write_extent_manager(self):
         nb = np.prod(self.axis_lengths[1:]) * self.trace_length - 1
