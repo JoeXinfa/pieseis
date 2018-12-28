@@ -29,7 +29,7 @@ JS_TRACE_DATA = "TraceFile"
 JS_TRACE_HEADERS = "TraceHeaders"
 JS_VIRTUAL_FOLDERS = "VirtualFolders"
 JS_HISTORY = "History"
-JS_COMMENT = "JavaSeis.py - JavaSeis File Propertties 2006.3"
+JS_COMMENT = "PieSeis.py - JavaSeis File Propertties 2006.3"
 
 # constant filenames
 JS_TRACE_MAP = "TraceMap"
@@ -96,9 +96,8 @@ class JavaSeisDataset(object):
             if not os.access(filename, os.R_OK):
                 raise IOError("Missing read access")
         elif mode == 'w':
-            if osp.exists(filename):
-                raise IOError("Path for JavaSeis dataset already exists")
-                # TODO give option to overwrite (delete old and write new)
+            #if osp.exists(filename):
+            #    raise IOError("Path for JavaSeis dataset already exists")
             parent_directory = osp.dirname(filename)
             if not os.access(parent_directory, os.W_OK):
                 raise IOError("Missing write access in {}".format(parent_directory))
@@ -841,14 +840,14 @@ class JavaSeisDataset(object):
         add_child_par(header, "byteOffset",   "int", " {} ".format(trace_header.byte_offset))
 
     def make_primary_dir(self):
-        make_directory(self.filename)
+        make_directory(self.filename, force=True)
 
     def make_extent_dirs(self):
         for path in self.secondaries:
             extpath = JavaSeisDataset.extent_dir(path, self.filename)
             #if extpath != self.filename: # C:Usersjoe vs C:/Users/joe
             if osp.normpath(extpath) != osp.normpath(self.filename):
-                make_directory(extpath)
+                make_directory(extpath, force=True)
 
     @staticmethod
     def get_trace_properties(ndim, property_defs, property_defs_add,
