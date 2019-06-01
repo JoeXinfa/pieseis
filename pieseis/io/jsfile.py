@@ -976,11 +976,10 @@ class JavaSeisDataset(object):
 
     @staticmethod
     def get_axis_propdefs(trace_headers, axis_labels):
-        axis_propdefs = {}
+        axis_propdefs = odict() # need keep the order
         for i, label in enumerate(axis_labels):
             axis_propdefs[label] = JavaSeisDataset.get_axis_propdef(trace_headers, label, i+1)
         return axis_propdefs
-
 
     @staticmethod
     def get_axis_propdef(trace_headers, label, dim):
