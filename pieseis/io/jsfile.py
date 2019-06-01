@@ -350,6 +350,14 @@ class JavaSeisDataset(object):
             total_bytes += th.format_size
         return total_bytes
 
+    @property
+    def nframes(self):
+        """
+        Return the number of frames, which is useful for iterating over
+        all frames in a JavaSeis dataset.
+        """
+        return np.prod(self.axis_lengths[2:])
+
     @staticmethod
     def _validate_js_dir(path):
         """Gets called during the construction of this object instance"""
@@ -691,8 +699,7 @@ class JavaSeisDataset(object):
 
     def create_map(self):
         fn = osp.join(self.filename, JS_TRACE_MAP)
-        nframes = np.prod(self.axis_lengths[2:])
-        array = np.zeros(nframes, dtype='int32')
+        array = np.zeros(self.nframes, dtype='int32')
         with open(fn, 'wb') as f:
             array.tofile(f)
 
