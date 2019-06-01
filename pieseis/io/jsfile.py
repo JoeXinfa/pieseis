@@ -459,6 +459,11 @@ class JavaSeisDataset(object):
         #return self.unpack_frame_hdrs(frame_bytes, fold)
         return frame_bytes
 
+    def read_frame(self, iframe):
+        trcs = self.read_frame_trcs(iframe)
+        hdrs = self.read_frame_hdrs(iframe)
+        return trcs, hdrs
+
     def unpack_frame_hdrs(self, frame_bytes, fold):
         """
         -o- frame_headers : list, element is namedtuple of headers, one for one trace
