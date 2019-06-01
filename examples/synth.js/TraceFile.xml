@@ -1,0 +1,8 @@
+<parset name="ExtentManager">
+  <par name="VFIO_VERSION" type="string"> 2006.2 </par>
+  <par name="VFIO_EXTSIZE" type="long"> 123360 </par>
+  <par name="VFIO_MAXFILE" type="int"> 8 </par>
+  <par name="VFIO_MAXPOS" type="long"> 740160 </par>
+  <par name="VFIO_EXTNAME" type="string"> TraceFile </par>
+  <par name="VFIO_POLICY" type="string"> RANDOM </par>
+</parset>
