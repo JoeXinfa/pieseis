@@ -220,7 +220,7 @@ class JavaSeisDataset(object):
             jsd.data_format     = _data_format
             jsd.data_order      = "LITTLE_ENDIAN" if data_order is None else data_order
             jsd.data_order_char = DATA_ORDER_TO_CHAR[jsd.data_order]
-            jsd.axis_lengths    = axis_lengths
+            jsd.axis_lengths    = _axis_lengths
             jsd.axis_units      = axis_units
             jsd.axis_domains    = axis_domains
             jsd.axis_lstarts    = axis_lstarts
@@ -252,7 +252,7 @@ class JavaSeisDataset(object):
             jsd.data_format     = _data_format
             jsd.data_order      = jsdsim.data_order if data_order is None else data_order
             jsd.data_order_char = DATA_ORDER_TO_CHAR[jsd.data_order]
-            jsd.axis_lengths    = axis_lengths
+            jsd.axis_lengths    = _axis_lengths
             jsd.axis_units      = jsdsim.axis_units if len(axis_units) == 0 else axis_units
             jsd.axis_domains    = jsdsim.axis_domains if len(axis_domains) == 0 else axis_domains
             jsd.axis_lstarts    = jsdsim.axis_lstarts if len(axis_lstarts) == 0 else axis_lstarts
