@@ -358,6 +358,13 @@ class JavaSeisDataset(object):
         """
         return np.prod(self.axis_lengths[2:])
 
+    @property
+    def ndim(self):
+        """
+        Return the dimension
+        """
+        return len(self.axis_lengths)
+
     @staticmethod
     def _validate_js_dir(path):
         """Gets called during the construction of this object instance"""
