@@ -556,9 +556,8 @@ class JavaSeisDataset(object):
             frame_headers.append(nt)
         return frame_headers
 
-    def get_trace_header(self, header_label, itrace, iframe):
+    def _get_trace_header(self, header_label, itrace, frame_bytes):
         assert header_label in self.properties
-        frame_bytes = self.read_frame_hdrs(iframe)
 
 #        b1 = self.header_length * (itrace - 1)
 #        b2 = b1 + self.header_length
@@ -574,6 +573,19 @@ class JavaSeisDataset(object):
         fmt = self.data_order_char + th._format_char
         offset = self.header_length * (itrace - 1) + th._byte_offset
         return struct.unpack_from(fmt, frame_bytes, offset=offset)
+
+    def get_trace_header(self, header_label, itrace, frame):
+        if type(frame) == int:
+            iframe = frame
+            frame_bytes = self.read_frame_hdrs(iframe)
+        elif type(frame) == tuple:
+            iframe = self.sub2ind(frame)
+            frame_bytes = self.read_frame_hdrs(iframe)
+        elif type(frame) == bytes:
+            frame_bytes = frame
+        else:
+            raise ValueError("Wrong type: {}".format(type(frame)))
+        return self._get_trace_header(header_label, itrace, frame_bytes)
 
     def set_trace_header(self, header_value, header_label, itrace, iframe):
         assert header_label in self.properties
