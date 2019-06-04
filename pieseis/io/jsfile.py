@@ -385,6 +385,34 @@ class JavaSeisDataset(object):
         assert 1 <= index <= self.nframes
         return tuple(cart[index-1])
 
+    def sub2ind(self, indices):
+        """
+        -i- indices : tuple, (ifrm, ivol, ihyp)
+        -o- index : integer, absolute index of frame, range [1, nframes]
+        """
+        n = len(indices)
+        assert n == self.ndim - 2
+        for i in range(n):
+            start = self.axis_lstarts[2+i]
+            step = self.axis_lincs[2+i]
+            num = self.axis_lengths[2+i]
+            stop = start + step * (num - 1)
+            assert start <= indices[i] <= stop
+            
+        a = indices[0] - self.axis_lstarts[2]
+        b = self.axis_lincs[2]
+        idx_lin, idx_mod = a // b, a % b
+        assert idx_mod == 0
+        idx_lin += 1
+        
+        for i in range(1,n):
+            a = indices[i] - self.axis_lstarts[2+i]
+            b = self.axis_lincs[2+i]
+            idx_lin_i, idx_mod = a // b, a % b
+            assert idx_mod == 0
+            idx_lin += idx_lin_i * np.prod(self.axis_lengths[2:2+i])
+        return idx_lin
+
     @staticmethod
     def _validate_js_dir(path):
         """Gets called during the construction of this object instance"""
