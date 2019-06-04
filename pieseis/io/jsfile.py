@@ -739,12 +739,35 @@ class JavaSeisDataset(object):
         index = self.get_map_position(iframe)
         return self.map[index]
 
-    def fold(self, indices):
+    def fold(self, frame):
         """
-        -i- indices : tuple, indices of the frame, (ifrm, ivol, ihyp, ...)
+        -i- frame : types
+            If integer, absolute index of frame
+            If tuple, indices of the frame, (ifrm, ivol, ihyp, ...)
+            If bytes, headers bytes of the frame
         """
-        iframe = self.sub2ind(indices)
-        return self._fold(iframe)
+        if type(frame) == int:
+            iframe = frame
+            fold = self._fold(iframe)
+        elif type(frame) == tuple:
+            iframe = self.sub2ind(frame)
+            fold = self._fold(iframe)
+        elif type(frame) == bytes:
+            fold = self._fold_from_hdrs(frame)
+        else:
+            raise ValueError("Wrong type: {}".format(type(frame)))
+        return fold
+
+    def _fold_from_hdrs(self, hdrs):
+        return int(len(hdrs) / self.header_length) # safe?
+        # Count the number of live traces
+#        fold = 0
+#        for i in range(n):
+#            itrace = i + 1
+#            trc_type = self._get_trace_header("TRC_TYPE", itrace, hdrs)
+#            if trc_type == trace_type['live']:
+#                fold += 1
+#        return fold
 
     def _read_map(self, iframe):
         vol = self.get_volume_index(iframe)
