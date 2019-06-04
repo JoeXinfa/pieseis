@@ -751,11 +751,10 @@ class JavaSeisDataset(object):
     def _calc_total_ntrace_live(self):
         if self.is_mapped:
             total_ntrace_live = 0
-            nframe = self.total_nframe
-            fmt = "{}i".format(nframe)
+            fmt = "{}i".format(self.nframes)
             fn = osp.join(self.filename, JS_TRACE_MAP)
             with open(fn, 'rb') as f:
-                buffer = f.read(nframe * 4)
+                buffer = f.read(self.nframes * 4)
                 folds = struct.unpack(fmt, buffer)
             for fold in folds:
                 total_ntrace_live += fold
@@ -768,11 +767,7 @@ class JavaSeisDataset(object):
     @property
     def total_ntrace(self):
         ntrace = self.axis_lengths[1]
-        return ntrace * self.total_nframe
-
-    @property
-    def total_nframe(self):
-        return np.prod(self.axis_lengths[2:])
+        return ntrace * self.nframes
 
     def create_map(self):
         fn = osp.join(self.filename, JS_TRACE_MAP)
