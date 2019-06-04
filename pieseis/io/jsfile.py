@@ -522,10 +522,20 @@ class JavaSeisDataset(object):
         #return self.unpack_frame_hdrs(frame_bytes, fold)
         return frame_bytes
 
-    def read_frame(self, iframe):
+    def _read_frame(self, iframe):
         trcs = self.read_frame_trcs(iframe)
         hdrs = self.read_frame_hdrs(iframe)
         return trcs, hdrs
+
+    def read_frame(self, indices):
+        """
+        -i- indices : tuple, indices of the frame to read
+            For 3D dataset, (frm_idx)
+            For 4D dataset, (frm_idx, vol_idx)
+            For 5D dataset, (frm_idx, vol_idx, hyp_idx)
+        """
+        iframe = self.sub2ind(indices)
+        return self._read_frame(iframe)
 
     def unpack_frame_hdrs(self, frame_bytes, fold):
         """
