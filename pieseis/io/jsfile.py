@@ -722,6 +722,13 @@ class JavaSeisDataset(object):
         index = self.get_map_position(iframe)
         return self.map[index]
 
+    def fold(self, indices):
+        """
+        -i- indices : tuple, indices of the frame, (ifrm, ivol, ihyp, ...)
+        """
+        iframe = self.sub2ind(indices)
+        return self._get_fold(iframe)
+
     def _read_map(self, iframe):
         vol = self.get_volume_index(iframe)
         if vol == self.current_volume:
