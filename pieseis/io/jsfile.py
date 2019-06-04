@@ -377,7 +377,7 @@ class JavaSeisDataset(object):
         for i in range(2, self.ndim):
             start = self.axis_lstarts[i]
             step = self.axis_lincs[i]
-            num = self.axis_length[i]
+            num = self.axis_lengths[i]
             stop = start + step * (num - 1)
             array = np.linspace(start, stop, num)
             axis_arrays.append(array)
