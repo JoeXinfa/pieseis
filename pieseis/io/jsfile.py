@@ -598,7 +598,12 @@ class JavaSeisDataset(object):
 
     def write_frame(self, trcs, hdrs, fold, iframe):
         self.write_frame_trcs(trcs, fold, iframe)
-        self.write_frame_hdrs(hdrs, fold, iframe)
+        if type(hdrs) == dict:
+            self.write_frame_hdrs(hdrs, fold, iframe)
+        elif type(hdrs) == bytes:
+            self._write_frame_hdrs(hdrs, fold, iframe)
+        else:
+            raise ValueError("Wrong type: {}".format(type(hdrs)))
         self.save_map(iframe, fold) # tracemap or foldmap
         if not self.has_traces and fold > 0:
             self.has_traces = True
