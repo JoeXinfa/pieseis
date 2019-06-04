@@ -489,7 +489,7 @@ class JavaSeisDataset(object):
         -o- trcs : array, float32, shape (ntrace, nsample)
         """
         assert self.mode != 'w'
-        fold = self._get_fold(iframe)
+        fold = self._fold(iframe)
         if fold == 0:
             return 0
         frame_size = self.trace_length * self.axis_lengths[1]
@@ -507,7 +507,7 @@ class JavaSeisDataset(object):
 
     def read_frame_hdrs(self, iframe):
         assert self.mode != 'w'
-        fold = self._get_fold(iframe)
+        fold = self._fold(iframe)
         if fold == 0:
             return 0
         #TODO set trace type dead from fold+1 to frame length
@@ -720,7 +720,7 @@ class JavaSeisDataset(object):
         filename = self.path
         self._hdr_extents = JavaSeisDataset.get_extents(xml, secondaries, filename)
 
-    def _get_fold(self, iframe):
+    def _fold(self, iframe):
         if not self.is_mapped:
             return self.axis_lengths[1]
         self._read_map(iframe)
@@ -732,7 +732,7 @@ class JavaSeisDataset(object):
         -i- indices : tuple, indices of the frame, (ifrm, ivol, ihyp, ...)
         """
         iframe = self.sub2ind(indices)
-        return self._get_fold(iframe)
+        return self._fold(iframe)
 
     def _read_map(self, iframe):
         vol = self.get_volume_index(iframe)
