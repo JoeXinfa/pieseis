@@ -22,6 +22,7 @@ from .trace_compressor import (get_trace_compressor, get_trace_length,
 from .compat import dictJStoPM, dictPMtoJS
 from .stock_props import (minimal_props, stock_props, stock_dtype,
     stock_unit, stock_domain)
+from ..utils.cartesian import cartesian
 
 DOT_XML = ".xml"
 JS_FILE_PROPERTIES = "FileProperties"
@@ -364,6 +365,25 @@ class JavaSeisDataset(object):
         Return the dimension
         """
         return len(self.axis_lengths)
+
+    def ind2sub(self, index):
+        """
+        -i- index : integer, absolute index of frame, range [1, nframes]
+        -o- sub : tuple, (ifrm, ivol, ihyp)
+        This is useful for looping over all frames in 4+ dimensions.
+        """
+        axis_arrays = []
+        for i in range(2, self.ndim):
+            start = self.axis_lstarts[i]
+            step = self.axis_lincs[i]
+            num = self.axis_length[i]
+            stop = start + step * (num - 1)
+            array = np.linspace(start, stop, num)
+            axis_arrays.append(array)
+        cart = cartesian(*axis_arrays)
+        cart = cart.astype(int) # is this good?
+        assert 1 <= index <= self.nframes
+        return tuple(cart[index-1])
 
     @staticmethod
     def _validate_js_dir(path):
