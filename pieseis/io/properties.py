@@ -31,6 +31,8 @@ def parse_parset_element(element):
     value = element.text
     if element_type == 'string':
         retval = parset_element_get_value(value)
+        if type(retval) == str:
+            retval = retval.strip('\"') # remove quotes at start and end
 
     elif element_type == 'boolean':
         retval = parset_element_get_value(value)
