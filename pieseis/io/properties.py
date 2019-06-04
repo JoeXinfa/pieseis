@@ -1,3 +1,4 @@
+from collections import OrderedDict as odict
 from lxml import etree
 import numpy as np
 
@@ -68,7 +69,7 @@ class Properties(object):
         if not isinstance(root, etree._Element):
             raise Exception("Root argument must be of type etree._Element")
         self._root = root
-        self._attributes = {}
+        self._attributes = odict()
         self._name = name
 
         self._parse_parset(self._root)
@@ -97,7 +98,7 @@ class Properties(object):
                     self._attributes[child.get('name')] = {'value': value, 'type': value_type}
             else:  # parset
                 name = child.get('name')
-                self._attributes[name] = {}
+                self._attributes[name] = odict()
                 self._parse_parset(child, name)
 
     def _parse(self):
@@ -305,9 +306,9 @@ class TraceProperties(Properties):
         super(TraceProperties, self).__init__(root, "TraceProperties")
 
         self._header_names = [self._attributes[x]['label']['value'] for x in self._attributes]
-        self._trace_headers_cache = {}
+        self._trace_headers_cache = odict()
 
-        self._trace_headers = {}
+        self._trace_headers = odict()
         for entry, attributes in self._attributes.items():
             label = attributes['label']['value']
             self._trace_headers[label] = TraceHeader(parset=attributes)

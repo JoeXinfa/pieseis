@@ -282,6 +282,7 @@ class JavaSeisDataset(object):
 
     @staticmethod
     def write(jsd, nextents, ndim, description, properties, hassim):
+        # TODO check properties is not used...?
         # initialize axes if not set yet
         if len(jsd.axis_units) == 0:
             jsd.axis_units = [stock_unit["UNKNOWN"]] * ndim
@@ -1006,8 +1007,12 @@ class JavaSeisDataset(object):
                 _axis_propdefs = axis_propdefs
 
         # initialize trace properties to an empty dictionary
-        #properties = {}
         properties = odict()
+        
+        # When provide similar_to file, the _property_defs is from that file.
+        # The increment of byte_offset assumes the headers order in odict
+        # (read from XML file) is consistent with the header byte_offset.
+        # Luckily for the JS I see from SeisSpace so far, this is true.
 
         # trace properties, minimal set (as defined by SeisSpace / ProMAX)
         if similar_to == "":
