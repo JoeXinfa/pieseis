@@ -618,12 +618,13 @@ class JavaSeisDataset(object):
         -i- hdrs : bytearray, headers bytes of the frame, in-place set
         """
         # TODO handle header.element_count > 1 ?
+        assert header.label in self.properties
         val = header.cast_value(val)
         fmt = self.data_order_char + header._format_char
         val_bytes = struct.pack(fmt, val)
         b1 = self.header_length * (itrc - 1)
         b1 += header._byte_offset # offset within this frame
-        b2 = b1 + header._byte_size
+        b2 = b1 + header._format_size
         hdrs[b1:b2] = val_bytes
 
     def write_frame(self, trcs, hdrs, fold, fidx):
