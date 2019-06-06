@@ -521,7 +521,8 @@ class JavaSeisDataset(object):
             f.seek(offset)
             frame_bytes = f.read(self.header_length * fold)
         #return self.unpack_frame_hdrs(frame_bytes, fold)
-        return frame_bytes
+        #return frame_bytes # bytes, immutable, read-only
+        return bytearray(frame_bytes) # mutable, read/write
 
     def _read_frame(self, iframe):
         trcs = self.read_frame_trcs(iframe)
@@ -582,7 +583,7 @@ class JavaSeisDataset(object):
         elif type(frame) == tuple:
             iframe = self.sub2ind(frame)
             frame_bytes = self.read_frame_hdrs(iframe)
-        elif type(frame) == bytes:
+        elif type(frame) == bytearray:
             frame_bytes = frame
         else:
             raise TypeError
@@ -609,6 +610,22 @@ class JavaSeisDataset(object):
             f.seek(offset + b1)
             f.write(header_bytes)
 
+    def set_header_in_frame(self, header, val, itrc, hdrs):
+        """
+        -i- header : TraceHeader
+        -i- val : int or float, header value to write
+        -i- itrc : integer, the i-th trace in frame, range [1, fold]
+        -i- hdrs : bytearray, headers bytes of the frame, in-place set
+        """
+        # TODO handle header.element_count > 1 ?
+        val = header.cast_value(val)
+        fmt = self.data_order_char + header._format_char
+        val_bytes = struct.pack(fmt, val)
+        b1 = self.header_length * (itrc - 1)
+        b1 += header._byte_offset # offset within this frame
+        b2 = b1 + header._byte_size
+        hdrs[b1:b2] = val_bytes
+
     def write_frame(self, trcs, hdrs, fold, fidx):
         if type(fidx) == int:
             iframe = fidx
@@ -628,7 +645,7 @@ class JavaSeisDataset(object):
         self.write_frame_trcs(trcs, fold, iframe)
         if type(hdrs) == dict:
             self.write_frame_hdrs(hdrs, fold, iframe)
-        elif type(hdrs) == bytes:
+        elif type(hdrs) == bytearray:
             self._write_frame_hdrs(hdrs, fold, iframe)
         else:
             raise TypeError
@@ -760,7 +777,7 @@ class JavaSeisDataset(object):
         -i- frame : types
             If integer, absolute index of frame
             If tuple, indices of the frame, (ifrm, ivol, ihyp, ...)
-            If bytes, headers bytes of the frame
+            If bytearray, headers bytes of the frame
         """
         if type(frame) == int:
             iframe = frame
@@ -768,7 +785,7 @@ class JavaSeisDataset(object):
         elif type(frame) == tuple:
             iframe = self.sub2ind(frame)
             fold = self._fold(iframe)
-        elif type(frame) == bytes:
+        elif type(frame) == bytearray:
             fold = self._fold_from_hdrs(frame)
         else:
             raise TypeError
