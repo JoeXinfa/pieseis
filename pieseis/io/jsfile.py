@@ -609,7 +609,22 @@ class JavaSeisDataset(object):
             f.seek(offset + b1)
             f.write(header_bytes)
 
-    def write_frame(self, trcs, hdrs, fold, iframe):
+    def write_frame(self, trcs, hdrs, fold, fidx):
+        if type(fidx) == int:
+            iframe = fidx
+        elif type(fidx) == tuple:
+            iframe = self.sub2ind(fidx)
+        else:
+            raise TypeError
+        self._write_frame(trcs, hdrs, fold, iframe)
+
+    def _write_frame(self, trcs, hdrs, fold, iframe):
+        """
+        -i- trcs : array, numpy 2D shape (ntrace, nsample)
+        -i- hdrs : dict or bytearray
+        -i- fold : integer, fold of this frame
+        -i- iframe : integer, absolute index of frame
+        """
         self.write_frame_trcs(trcs, fold, iframe)
         if type(hdrs) == dict:
             self.write_frame_hdrs(hdrs, fold, iframe)
