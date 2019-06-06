@@ -585,7 +585,7 @@ class JavaSeisDataset(object):
         elif type(frame) == bytes:
             frame_bytes = frame
         else:
-            raise ValueError("Wrong type: {}".format(type(frame)))
+            raise TypeError
         return self._get_trace_header(header_label, itrace, frame_bytes)
 
     def set_trace_header(self, header_value, header_label, itrace, iframe):
@@ -631,7 +631,7 @@ class JavaSeisDataset(object):
         elif type(hdrs) == bytes:
             self._write_frame_hdrs(hdrs, fold, iframe)
         else:
-            raise ValueError("Wrong type: {}".format(type(hdrs)))
+            raise TypeError
         self.save_map(iframe, fold) # tracemap or foldmap
         if not self.has_traces and fold > 0:
             self.has_traces = True
@@ -771,7 +771,7 @@ class JavaSeisDataset(object):
         elif type(frame) == bytes:
             fold = self._fold_from_hdrs(frame)
         else:
-            raise ValueError("Wrong type: {}".format(type(frame)))
+            raise TypeError
         return fold
 
     def _fold_from_hdrs(self, hdrs):
