@@ -627,6 +627,31 @@ class JavaSeisDataset(object):
         b2 = b1 + header._format_size
         hdrs[b1:b2] = val_bytes
 
+    def add_header_to_frame(self, header, val, itrc, hin, hou):
+        """
+        -i- header : TraceHeader
+        -i- val : int or float, header value to write
+        -i- itrc : integer, the i-th trace in frame, range [1, fold]
+        -i- hin : bytearray, headers bytes of the input frame
+        -i- hou : bytearray, headers bytes of the output frame
+        """
+        assert header.label in self.properties
+        val = header.cast_value(val)
+        fmt = self.data_order_char + header._format_char
+        val_bytes = struct.pack(fmt, val)
+
+        hlen_ou = self.header_length
+        fold = len(hou) / hlen_ou
+        hlen_in = int(len(hin) / fold)
+        a1 = hlen_in * (itrc - 1)
+        a2 = a1 + hlen_in
+        b1 = hlen_ou * (itrc - 1)
+        b2 = b1 + hlen_in
+        b3 = b1 + hlen_ou
+
+        hou[b1:b2] = hin[a1:a2]
+        hou[b2:b3] = val_bytes
+
     def write_frame(self, trcs, hdrs, fold, fidx):
         if type(fidx) == int:
             iframe = fidx
