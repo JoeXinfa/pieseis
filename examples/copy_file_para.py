@@ -22,7 +22,7 @@ jsddst = jsfile.JavaSeisDataset.open(fndst, mode='w', similar_to=fnsrc)
 
 def write1frame(jsdsrc, jsddst, iframe):
     if iframe % 10 == 0:
-        print("Reading frame {} of {}".format(iframe, jsdsrc.nframes))
+        print("Writing frame {} of {}".format(iframe, jsdsrc.nframes))
     idx = jsdsrc.ind2sub(iframe)
     trcs, hdrs = jsdsrc.read_frame(idx)
     fold = jsdsrc.fold(idx)
