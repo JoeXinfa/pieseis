@@ -610,35 +610,37 @@ class JavaSeisDataset(object):
             f.seek(offset + b1)
             f.write(header_bytes)
 
-    def set_header_in_frame(self, header, val, itrc, hdrs):
+    def set_header_in_frame(self, header, val, itrc, hin, hou=None):
+        if hou is None:
+            # in-place modify an existing header
+            self._set_header_in_frame(header, val, itrc, hin)
+        else:
+            # add a new header by append
+            self.add_header_to_frame(header, val, itrc, hin, hou)
+
+    def _set_header_in_frame(self, header, val, itrc, hin):
         """
-        -i- header : TraceHeader
-        -i- val : int or float, header value to write
+        -i- header : TraceHeader/string
+        -i- val : int/float/bytes, header value to write
         -i- itrc : integer, the i-th trace in frame, range [1, fold]
-        -i- hdrs : bytearray, headers bytes of the frame, in-place set
+        -i- hin : bytearray, headers bytes of the frame, in-place set
         """
         # TODO handle header.element_count > 1 ?
-        assert header.label in self.properties
-        val = header.cast_value(val)
-        fmt = self.data_order_char + header._format_char
-        val_bytes = struct.pack(fmt, val)
+        header, val = self._set_header_prep(header, val)
         b1 = self.header_length * (itrc - 1)
         b1 += header._byte_offset # offset within this frame
         b2 = b1 + header._format_size
-        hdrs[b1:b2] = val_bytes
+        hin[b1:b2] = val
 
     def add_header_to_frame(self, header, val, itrc, hin, hou):
         """
-        -i- header : TraceHeader
-        -i- val : int or float, header value to write
+        -i- header : TraceHeader/string
+        -i- val : int/float/bytes, header value to write
         -i- itrc : integer, the i-th trace in frame, range [1, fold]
         -i- hin : bytearray, headers bytes of the input frame
         -i- hou : bytearray, headers bytes of the output frame
         """
-        assert header.label in self.properties
-        val = header.cast_value(val)
-        fmt = self.data_order_char + header._format_char
-        val_bytes = struct.pack(fmt, val)
+        header, val = self._set_header_prep(header, val)
 
         hlen_ou = self.header_length
         fold = len(hou) / hlen_ou
@@ -650,7 +652,30 @@ class JavaSeisDataset(object):
         b3 = b1 + hlen_ou
 
         hou[b1:b2] = hin[a1:a2]
-        hou[b2:b3] = val_bytes
+        hou[b2:b3] = val
+
+    def _set_header_prep(self, header, val):
+        """
+        -i- header : TraceHeader/string
+        -i- val : int/float/bytes, header value to write
+        -o- header : TraceHeader
+        -o- val_bytes : bytes
+        """
+        # After this, header is TraceHeader
+        if type(header) == str:
+            header = self.properties[header]
+        else:
+            assert header.label in self.properties
+        # Convert header value to bytes
+        if type(val) == bytes:
+            # This is to save time when the header value to set is the
+            # same across frames, thus input is bytes already.
+            val_bytes = val
+        else:
+            val = header.cast_value(val)
+            fmt = self.data_order_char + header._format_char
+            val_bytes = struct.pack(fmt, val)
+        return header, val_bytes
 
     def write_frame(self, trcs, hdrs, fold, fidx):
         if type(fidx) == int:
