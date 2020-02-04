@@ -1200,7 +1200,7 @@ class JavaSeisDataset(object):
         # The sample and trace labels do not need a corresponding trace property.
         # Therefore, these should be considered valid datasets.
         if dim == 1 or dim == 2:
-            return TraceHeader(values=(label, label, 'int32', 1, 0))
+            return TraceHeader(values=(label, label, 'INTEGER', 1, 0))
 
         raise ValueError("Malformed JavaSeis: axis props, axis label={} has no "
                          "corresponding trace property".format(label))
