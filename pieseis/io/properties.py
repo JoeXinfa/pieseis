@@ -70,11 +70,14 @@ class Properties(object):
     def __init__(self, root, name):
         if not isinstance(root, etree._Element):
             raise Exception("Root argument must be of type etree._Element")
-        self._root = root
+        
+        # https://stackoverflow.com/q/25991860
+        # https://bugs.launchpad.net/lxml/+bug/736708
+        # Joblib cannot pickle etree and send to threads
+        # self._root = root
         self._attributes = odict()
         self._name = name
-
-        self._parse_parset(self._root)
+        self._parse_parset(root)
 
     def put(self, name, value, value_type=None):
         if not name in self._attributes:
