@@ -492,7 +492,7 @@ class JavaSeisDataset(object):
         assert self.mode != 'w'
         fold = self._fold(iframe)
         if fold == 0:
-            return 0
+            return None
         frame_size = self.trace_length * self.axis_lengths[1]
         offset = (iframe - 1) * frame_size
         extent = get_extent_index(self.trc_extents, offset)
@@ -1235,7 +1235,7 @@ class JavaSeisDataset(object):
         basename = xml.extent_name
         size = xml.extent_size
         maxpos = xml.extent_maxpos
-        extents = [None] * nextents
+        extents = [extent_dict()] * nextents
         for secondary in secondaries:
             base_extpath = JavaSeisDataset.extent_dir(secondary, filename)
             if osp.isdir(base_extpath):
@@ -1247,7 +1247,17 @@ class JavaSeisDataset(object):
                         path = osp.join(base_extpath, name)
                         extents[i] = extent_dict(name, path, i, start, size)
 
-        # TODO add missing extents (i.e. extents with all empty frames)
+        # Add missing extents (i.e. extents with all empty frames)
+        isec, nsec = 0, len(secondaries)
+        for i in range(nextents):
+            if extents[i]['index'] < 0:  # missing
+                start = i * size
+                name = basename + str(i)
+                secondary = secondaries[isec]
+                base_extpath = JavaSeisDataset.extent_dir(secondary, filename)
+                path = osp.join(base_extpath, name)
+                extents[i] = extent_dict(name, path, i, start, size)
+                isec = 0 if isec == nsec-1 else isec + 1
 
         # the last extent might be a different size
         extent = extents[nextents-1]
@@ -1307,7 +1317,7 @@ def get_extent_index(extents, offset):
     return extents[i]
 
 
-def extent_dict(name, path, index, start, size):
+def extent_dict(name="", path="", index=-1, start=-1, size=-1):
     return {'name': name, 'path': path, 'index': index, 'start': start,
             'size': size}
 
